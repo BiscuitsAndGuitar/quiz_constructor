@@ -13,10 +13,10 @@
 ### 1. Зависимости backend и настройки
 
 ```powershell
-cd C:\Users\azatk\PycharmProjects\QUIZ_CONSTRUCTOR
+cd C:\Users\azatk\PycharmProjects\QUIZ_CONSTRUCTOR\backend
 python -m venv .venv
-.\.venv\Scripts\python -m pip install -r backend/requirements.txt
-Copy-Item backend/.env.example backend/.env
+.\.venv\Scripts\python -m pip install -r requirements.txt
+Copy-Item .env.example .env
 ```
 
 Копирование выполняется только при первой настройке: существующий `.env` сохраняйте.
@@ -37,7 +37,7 @@ Copy-Item backend/.env.example backend/.env
 ```powershell
 createdb -h localhost -p 5432 -U postgres quiz_constructor
 cd C:\Users\azatk\PycharmProjects\QUIZ_CONSTRUCTOR\backend
-..\.venv\Scripts\python -m alembic upgrade head
+.\.venv\Scripts\python -m alembic upgrade head
 ```
 
 Миграция создаёт 18 таблиц приложения, служебную `alembic_version`, четыре типа
@@ -47,7 +47,7 @@ cd C:\Users\azatk\PycharmProjects\QUIZ_CONSTRUCTOR\backend
 
 ```powershell
 cd C:\Users\azatk\PycharmProjects\QUIZ_CONSTRUCTOR\backend
-..\.venv\Scripts\python -m uvicorn app.main:app --reload
+.\.venv\Scripts\python -m uvicorn app.main:app --reload
 ```
 
 Откройте [health](http://localhost:8000/health) и [Swagger UI](http://localhost:8000/docs).
@@ -65,13 +65,26 @@ npm run dev
 Порт 5173 фиксирован: если он занят, Vite сообщит об ошибке, а не выберет другой.
 CORS backend разрешает источник `http://localhost:5173`.
 
+## Работа с backend и frontend отдельно
+
+Открывайте `backend` отдельным проектом PyCharm, а `frontend` — другим проектом.
+Для backend выберите существующий интерпретатор:
+`C:\Users\azatk\PycharmProjects\QUIZ_CONSTRUCTOR\backend\.venv\Scripts\python.exe`.
+Рабочая папка для Python, pytest и Alembic — `backend`.
+Для запуска сервера используйте модуль `uvicorn` с параметрами `app.main:app --reload`.
+Для frontend рабочая папка — `frontend`, запуск — `npm run dev`.
+
+Python-окружение находится в `backend/.venv`, npm-зависимости — в
+`frontend/node_modules`. Оба каталога исключены из Git. Репозиторий остаётся
+общим для backend, frontend и документов.
+
 ## Как проверить
 
 Тесты не подключаются к БД и не требуют настоящего `.env`:
 
 ```powershell
 cd C:\Users\azatk\PycharmProjects\QUIZ_CONSTRUCTOR\backend
-..\.venv\Scripts\python -m pytest -q
+.\.venv\Scripts\python -m pytest -q
 ```
 
 Проверка сборки frontend:
@@ -94,10 +107,10 @@ psql -h localhost -p 5432 -U postgres -d quiz_constructor -c 'SELECT * FROM cond
 
 ```powershell
 cd C:\Users\azatk\PycharmProjects\QUIZ_CONSTRUCTOR\backend
-..\.venv\Scripts\python -m alembic downgrade base
+.\.venv\Scripts\python -m alembic downgrade base
 psql -h localhost -p 5432 -U postgres -d quiz_constructor -c '\dt'
-..\.venv\Scripts\python -m alembic upgrade head
-..\.venv\Scripts\python -m alembic check
+.\.venv\Scripts\python -m alembic upgrade head
+.\.venv\Scripts\python -m alembic check
 ```
 
 После online-отката Alembic может оставить пустую служебную `alembic_version`.
@@ -107,8 +120,8 @@ psql -h localhost -p 5432 -U postgres -d quiz_constructor -c '\dt'
 
 ```powershell
 cd C:\Users\azatk\PycharmProjects\QUIZ_CONSTRUCTOR\backend
-..\.venv\Scripts\python -m alembic upgrade head --sql
-..\.venv\Scripts\python -m alembic downgrade 0001:base --sql
+.\.venv\Scripts\python -m alembic upgrade head --sql
+.\.venv\Scripts\python -m alembic downgrade 0001:base --sql
 ```
 
 Для этих команд нужны настройки из `.env`, но сервер БД не используется.
