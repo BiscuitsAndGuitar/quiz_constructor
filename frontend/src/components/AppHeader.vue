@@ -1,0 +1,35 @@
+<script setup>
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/auth.js'
+
+const auth = useAuthStore()
+const router = useRouter()
+function logout() {
+  auth.logout()
+  router.replace('/')
+}
+</script>
+
+<template>
+  <header class="app-header">
+    <RouterLink to="/" class="logo">Конструктор</RouterLink>
+    <nav aria-label="Главное меню">
+      <template v-if="!auth.user">
+        <RouterLink to="/login">Войти</RouterLink>
+        <RouterLink to="/register">Регистрация</RouterLink>
+      </template>
+      <template v-else>
+        <template v-if="auth.user.is_author">
+          <RouterLink to="/my/forms">Мои опросы и тесты</RouterLink>
+          <button disabled title="Раздел появится позже">Библиотека блоков</button>
+        </template>
+        <template v-else>
+          <RouterLink to="/my/attempts">Мои прохождения</RouterLink>
+          <button disabled title="Раздел появится позже">Ввести код</button>
+        </template>
+        <span>{{ auth.user.name }}</span>
+        <button @click="logout">Выйти</button>
+      </template>
+    </nav>
+  </header>
+</template>

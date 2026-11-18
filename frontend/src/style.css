@@ -1,0 +1,28 @@
+:root { font-family: Arial, sans-serif; color: #222; background: #fff; line-height: 1.5; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+a { color: inherit; text-underline-offset: 3px; }
+button, input { font: inherit; }
+button { padding: 8px 16px; border: 1px solid #777; border-radius: 4px; background: #f3f3f3; cursor: pointer; }
+button:disabled { color: #666; cursor: default; opacity: .65; }
+input:not([type=radio]) { width: 100%; padding: 9px; border: 1px solid #777; border-radius: 4px; }
+:focus-visible { outline: 2px solid #222; outline-offset: 3px; }
+.app-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; padding: 18px 5%; border-bottom: 1px solid #ccc; }
+.logo { font-weight: bold; font-size: 1.2rem; }
+nav, .actions { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
+main { max-width: 1000px; margin: 36px auto; padding: 0 24px; }
+h1 { line-height: 1.25; }
+.auth-page { max-width: 540px; margin: auto; }
+.field { margin-bottom: 18px; }
+.field label, .code-form > label { display: block; margin-bottom: 5px; }
+.hint { color: #555; font-size: .9rem; margin: 5px 0; }
+.error { font-size: .95rem; border-left: 3px solid #555; padding-left: 10px; margin: 7px 0 16px; }
+[aria-invalid=true] { border-width: 2px !important; }
+fieldset { border: 0; padding: 0; margin: 0 0 24px; }
+legend { margin-bottom: 8px; }
+.role-cards { display: flex; flex-wrap: wrap; gap: 12px; }
+.role-card { display: flex; align-items: baseline; gap: 8px; flex: 1 1 210px; border: 1px solid #888; border-radius: 4px; padding: 15px; cursor: pointer; }
+.role-card:has(input:checked) { outline: 2px solid #444; }
+.role-card small { display: block; }
+.code-form { margin-top: 36px; max-width: 480px; }
+.code-form input { flex: 1; min-width: 150px; }

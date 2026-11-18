@@ -1,8 +1,8 @@
 # Конструктор опросов и тестов
 
-Этап 1: FastAPI, SQLAlchemy 2, PostgreSQL, Alembic и минимальный Vue 3 frontend.
-Единственный прикладной API — `GET /health`. Документация — `/docs`, файлы — `/uploads`.
-Регистрация, вход, редактор и прохождение форм будут добавлены на следующих этапах.
+Этап 2: регистрация, вход по JWT, стартовая страница и меню по роли.
+API: `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `GET /health`.
+Документация — `/docs`, файлы — `/uploads`. Редактор и прохождение форм появятся позже.
 
 ## Как запустить
 
@@ -14,15 +14,16 @@
 
 ```powershell
 cd C:\Users\azatk\PycharmProjects\QUIZ_CONSTRUCTOR\backend
-python -m venv .venv
+if (!(Test-Path .venv)) { py -3.11 -m venv .venv }
 .\.venv\Scripts\python -m pip install -r requirements.txt
-Copy-Item .env.example .env
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
 Копирование выполняется только при первой настройке: существующий `.env` сохраняйте.
 В `backend/.env` укажите пароль PostgreSQL в `DATABASE_URL` и собственный `SECRET_KEY`.
 Если пароль содержит специальные символы URL, закодируйте их (например, `@` → `%40`).
-`ACCESS_TOKEN_EXPIRE_MINUTES=30` оставлено для будущего входа.
+В существующий `.env` добавьте `ALGORITHM=HS256`; срок жизни JWT задаёт
+`ACCESS_TOKEN_EXPIRE_MINUTES=30`. Без строки `ALGORITHM` используется HS256.
 Случайный секрет можно получить командой:
 
 ```powershell
@@ -31,7 +32,7 @@ Copy-Item .env.example .env
 
 ### 2. Создание базы и миграция
 
-Базу создаёт пользователь. Эти команды ещё не выполнялись при подготовке проекта.
+Базу создаёт пользователь. Если база уже есть, команду `createdb` пропустите.
 Имя базы и пользователь должны совпадать с `DATABASE_URL`.
 
 ```powershell
@@ -59,12 +60,15 @@ cd C:\Users\azatk\PycharmProjects\QUIZ_CONSTRUCTOR\backend
 ```powershell
 cd C:\Users\azatk\PycharmProjects\QUIZ_CONSTRUCTOR\frontend
 npm ci
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
 npm run dev
 ```
 
 Откройте [страницу приложения](http://localhost:5173).
 Порт 5173 фиксирован: если он занят, Vite сообщит об ошибке, а не выберет другой.
 CORS backend разрешает источник `http://localhost:5173`.
+Адрес API задаётся в `frontend/.env`: `VITE_API_BASE_URL=http://localhost:8000`.
+После изменения `.env` перезапустите Vite. Секрет JWT во frontend не передаётся.
 
 ## Работа с backend и frontend отдельно
 
@@ -81,19 +85,58 @@ Python-окружение находится в `backend/.venv`, npm-завис�
 
 ## Как проверить
 
-Тесты не подключаются к БД и не требуют настоящего `.env`:
+HTTP-тестам нужны запущенный PostgreSQL, применённые миграции и `backend/.env`.
+Они используют подключение из `DATABASE_URL`, каждый тест работает во внешней
+транзакции с откатом; `commit()` сервиса завершает только SAVEPOINT. Тестовые
+пользователи не остаются в базе, существующие записи не меняются. Последовательность
+номеров пользователей может увеличиться — пропуски в id нормальны.
+Отдельная тестовая база не создаётся. Для токенов тесты используют свой секрет.
 
 ```powershell
 cd C:\Users\azatk\PycharmProjects\QUIZ_CONSTRUCTOR\backend
 .\.venv\Scripts\python -m pytest -q
 ```
 
-Проверка сборки frontend:
+Без подключения к БД можно проверить функции безопасности, health и метаданные:
+
+```powershell
+.\.venv\Scripts\python -m pytest tests/test_security.py tests/test_health.py tests/test_models.py -q
+```
+
+Проверка фронтенда (проверки пароля используют встроенный тестовый модуль Node.js):
 
 ```powershell
 cd C:\Users\azatk\PycharmProjects\QUIZ_CONSTRUCTOR\frontend
 npm run build
+node --test tests/password.test.js
 ```
+
+### Проверка регистрации и входа
+
+1. В [Swagger UI](http://localhost:8000/docs) выполните `POST /auth/register`
+   с новым email, именем, паролем и `is_author: true` или `false`: ожидается 201.
+   Повторный email даёт 409; неверные данные — 422 с русским текстом в `detail`.
+2. Выполните `POST /auth/login`. Скопируйте `access_token`, нажмите **Authorize**
+   и вставьте сам токен (без слова Bearer). `GET /auth/me` вернёт пользователя;
+   без токена — 401. В ответах не должно быть `password_hash`.
+3. На [фронтенде](http://localhost:5173) зарегистрируйте составителя и участника
+   с разными email. Проверьте автоматический вход, выход, повторный вход и обновление страницы.
+4. Гостем откройте `/my/forms`: откроется вход с `redirect`. После входа составителем
+   вернётесь туда. Для участника `/my/forms` покажет «Нет доступа», для составителя
+   то же произойдёт на `/my/attempts`. Неизвестный адрес покажет «Не найдено».
+5. На регистрации проверьте короткий пароль, слишком длинный пароль, несовпадение
+   повторного пароля и занятый email. Подсказка «Не менее 8 символов» видна постоянно.
+   При входе неверный пароль любой длины даёт 401.
+
+Пароль: минимум 8 символов Unicode, максимум 72 байта UTF-8; разрешены кириллица
+и эмодзи. Пробелы сохраняются, обрезки нет. 36 русских букв или 18 обычных эмодзи
+занимают ровно 72 байта. В интерфейсе и ошибках API единица «байт» не используется.
+Токен хранится в localStorage; при его недействительности удаляется. Если браузер
+запретил localStorage, вход работает в памяти до обновления страницы.
+
+Добавлены `bcrypt` для хеширования паролей, `PyJWT` для подписи и проверки JWT,
+`email-validator` для проверки email в Pydantic. `app/dependencies.py` содержит
+общие проверки пользователя и роли через Depends; файл добавлен в структуру AGENTS.md.
 
 После создания базы и применения миграции:
 
