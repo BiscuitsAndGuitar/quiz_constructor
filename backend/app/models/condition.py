@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, String, true
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, String, Text, true
 
 from app.database import Base
 
@@ -7,11 +7,14 @@ from app.database import Base
 class ConditionGroup(Base):
     __tablename__ = "condition_groups"
     __table_args__ = (
-        # Верхняя группа принадлежит блоку или вопросу, вложенная — только группе.
+        # Верхняя группа имеет одного владельца, вложенная — только родителя.
         CheckConstraint(
             "(parent_group_id IS NULL AND "
-            "((block_id IS NULL) <> (question_id IS NULL))) OR "
-            "(parent_group_id IS NOT NULL AND block_id IS NULL AND question_id IS NULL)",
+            "(CASE WHEN block_id IS NOT NULL THEN 1 ELSE 0 END + "
+            "CASE WHEN question_id IS NOT NULL THEN 1 ELSE 0 END + "
+            "CASE WHEN early_finish_rule_id IS NOT NULL THEN 1 ELSE 0 END = 1)) OR "
+            "(parent_group_id IS NOT NULL AND block_id IS NULL AND question_id IS NULL "
+            "AND early_finish_rule_id IS NULL)",
             name="ck_condition_groups_owner",
         ),
     )
@@ -38,6 +41,25 @@ class ConditionGroup(Base):
         ForeignKey("questions.id", ondelete="CASCADE"),
         nullable=True,
     )
+    early_finish_rule_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("early_finish_rules.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+
+
+class EarlyFinishRule(Base):
+    __tablename__ = "early_finish_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
+    question_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("questions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
 class Condition(Base):

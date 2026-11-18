@@ -74,6 +74,7 @@ class Form(Base):
         default=False,
         server_default=false(),
     )
+    completion_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
@@ -210,3 +211,4 @@ class GradingScale(Base):
     )
     min_percent: Mapped[int] = mapped_column(Integer, nullable=False)
     grade: Mapped[str] = mapped_column(String(20), nullable=False)
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)

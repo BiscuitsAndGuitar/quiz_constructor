@@ -12,7 +12,7 @@
 
 | Файл | Что внутри |
 |---|---|
-| `docs/database_schema.md` | 18 таблиц, поля, типы, правила, подсчёт баллов |
+| `docs/database_schema.md` | 18 таблиц (в коде уже 19, см. раздел 7), поля, типы, правила, подсчёт баллов |
 | `docs/er_diagram.png` | ER-диаграмма |
 | `docs/api_description.md` | 25 запросов API, примеры JSON, правила показа вопросов, режимы прохождения |
 | `docs/ui_pages_description.md` | Страницы интерфейса и их содержимое |
@@ -103,6 +103,11 @@ AGENTS.md
 3. если скрыт блок, скрыты и его вопросы (блок без видимых вопросов пропускается);
 4. видимость вычисляется сверху вниз;
 5. ответы на скрытые вопросы отбрасываются, сервер при завершении сам пересчитывает видимость.
+6. после сработавшего правила досрочного завершения все последующие вопросы не показаны.
+
+**Досрочное завершение (только опросы).** У вопроса может быть несколько правил early_finish_rules (порядок по position, срабатывает первое подходящее). У правила есть условие (те же condition_groups и conditions, связь через condition_groups.early_finish_rule_id), которое может ссылаться на вопросы не ниже самого вопроса правила, и необязательное сообщение. Правило проверяется после ответа на вопрос (в режиме по блокам: когда участник нажимает «Далее» на странице блока). Если оно сработало, попытка завершается: попытке записывается early_finish_rule_id и finished_at, а все последующие вопросы считаются не показанными (шестое правило видимости). Сервер сам пересчитывает это при завершении и отбрасывает ответы на последующие вопросы.
+
+**Сообщения на странице завершения.** Показывается одно, первое из заполненных: early_finish_rules.message (при досрочном завершении), grading_scale.message (тест, сообщение оценки, которую получил участник), forms.completion_message, стандартный текст «Спасибо за участие!». Сообщения это простой текст без HTML.
 
 **Режимы прохождения** (у опросов и тестов): `take_by_blocks` (страница равна блоку, иначе один вопрос на экране) и `allow_free_navigation` (можно возвращаться и переходить, иначе строго по порядку). Перемешивание делает сервер при старте попытки: `shuffle_answer_options` для опросов и тестов, `shuffle_questions` только для тестов (внутри блока или по всему тесту, в зависимости от `take_by_blocks`).
 
@@ -121,7 +126,7 @@ AGENTS.md
 
 ## 8. Названия таблиц
 
-`users`, `forms`, `blocks`, `questions`, `question_types`, `question_choices`, `correct_text_answers`, `images`, `grading_scale`, `condition_groups`, `conditions`, `condition_operators`, `attempts`, `attempt_answers`, `attempt_answer_choices`, `library_blocks`, `tags`, `library_block_tags`.
+`users`, `forms`, `blocks`, `questions`, `question_types`, `question_choices`, `correct_text_answers`, `images`, `grading_scale`, `condition_groups`, `conditions`, `condition_operators`, `attempts`, `attempt_answers`, `attempt_answer_choices`, `library_blocks`, `tags`, `library_block_tags`, `early_finish_rules`.
 
 **Старые названия не использовать:** `options`, `answers`, `answer_options`, `grade_scale`, `accepted_answers`, `show_by_blocks`, `show_block_results`, `shuffle_options`, `is_required`, `is_partial_scoring`, `text_value`, `logic`, `scoring_mode`.
 

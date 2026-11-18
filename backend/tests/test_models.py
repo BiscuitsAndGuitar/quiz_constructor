@@ -8,7 +8,7 @@ def test_table_names():
         "question_choices", "correct_text_answers", "images", "grading_scale",
         "condition_groups", "conditions", "condition_operators", "attempts",
         "attempt_answers", "attempt_answer_choices", "library_blocks", "tags",
-        "library_block_tags",
+        "library_block_tags", "early_finish_rules",
     }
     assert set(Base.metadata.tables) == expected
-    assert len(Base.metadata.tables) == 18
+    assert len(Base.metadata.tables) == 19

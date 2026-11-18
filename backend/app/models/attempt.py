@@ -33,6 +33,11 @@ class Attempt(Base):
         ForeignKey("grading_scale.id", ondelete="SET NULL"),
         nullable=True,
     )
+    early_finish_rule_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("early_finish_rules.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
 
 class AttemptAnswer(Base):

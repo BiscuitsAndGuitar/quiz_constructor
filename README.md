@@ -40,8 +40,9 @@ cd C:\Users\azatk\PycharmProjects\QUIZ_CONSTRUCTOR\backend
 .\.venv\Scripts\python -m alembic upgrade head
 ```
 
-Миграция создаёт 18 таблиц приложения, служебную `alembic_version`, четыре типа
-вопросов и шесть операторов условий. Других начальных данных нет.
+Две миграции создают 19 таблиц приложения, служебную `alembic_version`, четыре типа
+вопросов и шесть операторов условий. Вторая миграция добавляет правила досрочного
+завершения и поля сообщений. Других начальных данных нет.
 
 ### 3. Запуск backend
 
@@ -102,7 +103,17 @@ psql -h localhost -p 5432 -U postgres -d quiz_constructor -c 'SELECT * FROM ques
 psql -h localhost -p 5432 -U postgres -d quiz_constructor -c 'SELECT * FROM condition_operators;'
 ```
 
-Ожидаются 19 таблиц вместе с `alembic_version`, 4 строки типов и 6 строк операторов.
+Ожидаются 20 таблиц вместе с `alembic_version`, 4 строки типов и 6 строк операторов.
+Проверка отката только второй миграции из папки `backend`:
+
+```powershell
+.\.venv\Scripts\python -m alembic downgrade -1
+.\.venv\Scripts\python -m alembic upgrade head
+.\.venv\Scripts\python -m alembic check
+```
+
+Откат второй миграции удаляет правила досрочного завершения, их группы и условия,
+а также новые поля сообщений и ссылки на правила. Прежние группы показа сохраняются.
 Проверка отката на пустой учебной базе (удаляет все таблицы приложения и их данные):
 
 ```powershell
@@ -142,10 +153,8 @@ cd C:\Users\azatk\PycharmProjects\QUIZ_CONSTRUCTOR\backend
   Тип остаётся `timestamp without time zone`, как в схеме; даты, задаваемые приложением,
   также нужно передавать в UTC. Для других дат автоматическое значение не задано.
 - `blocks` проверяет, что заполнено ровно одно из `form_id` и `library_block_id`.
-- По дополнительному указанию пользователя добавлен `ck_condition_groups_owner`:
-  у верхней группы заполнено ровно одно из `block_id` и `question_id`, у вложенной —
-  оба пусты. Правило описано в документах, а его реализация через CheckConstraint
-  отдельно согласована в задаче.
+- Во второй миграции обновлён `ck_condition_groups_owner`: у верхней группы заполнено
+  ровно одно из `block_id`, `question_id`, `early_finish_rule_id`, у вложенной — все три пусты.
 - Список nullable-полей отдельно согласован с пользователем:
   `forms.description`, `forms.max_attempts`, `forms.time_limit_minutes`, `forms.published_at`,
   `blocks.title`, `blocks.form_id`, `blocks.library_block_id`, `questions.points`,
@@ -154,7 +163,8 @@ cd C:\Users\azatk\PycharmProjects\QUIZ_CONSTRUCTOR\backend
   `attempts.grading_scale_id`, `attempt_answers.text_answer`, `attempt_answers.score`,
   `conditions.choice_id`, `conditions.text_answer`, `condition_groups.parent_group_id`,
   `condition_groups.block_id`, `condition_groups.question_id`. Остальные поля — `NOT NULL`.
-- Созданы только восемь явно перечисленных в схеме индексов.
+- Созданы восемь явно перечисленных в схеме индексов и индекс
+  `early_finish_rules.question_id`, согласованный в доработке этапа 1.
   PostgreSQL также создаёт индексы для первичных ключей и UNIQUE.
 - Проверки предметной области при сохранении формы относятся к следующим этапам.
   Здесь нет API для сохранения, публикации или прохождения форм.
