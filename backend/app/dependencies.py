@@ -4,7 +4,7 @@ from jwt import InvalidTokenError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import User
+from app.models import Form, User
 from app.services.security import decode_access_token
 
 bearer = HTTPBearer(auto_error=False)
@@ -40,3 +40,12 @@ def require_participant(user: User = Depends(get_current_user)) -> User:
     if user.is_author:
         raise HTTPException(status_code=403, detail="Доступ только для участника")
     return user
+
+
+def get_owned_form(id: int, user: User = Depends(require_author), db: Session = Depends(get_db)) -> Form:
+    form = db.get(Form, id) if 1 <= id <= 2147483647 else None
+    if form is None:
+        raise HTTPException(status_code=404, detail="Форма не найдена")
+    if form.author_id != user.id:
+        raise HTTPException(status_code=403, detail="Нет доступа к чужой форме")
+    return form

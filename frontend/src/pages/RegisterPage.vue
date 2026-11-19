@@ -2,7 +2,7 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
-import { passwordError } from './password.js'
+import { passwordError } from '../utils/password.js'
 
 const auth = useAuthStore()
 const router = useRouter()

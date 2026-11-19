@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { passwordError } from '../src/pages/password.js'
+import { passwordError } from './password.js'
 
 for (const password of ['abcdefgh', 'a'.repeat(72), 'я'.repeat(36), '😀'.repeat(18)]) {
   test(`Допустимый пароль: ${[...password].length} символов, ${new TextEncoder().encode(password).length} UTF-8`, () => {

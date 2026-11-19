@@ -54,6 +54,7 @@ frontend/
     pages/
     router/
     stores/          # Pinia
+    utils/           # небольшие общие функции и их тесты
 docs/
 AGENTS.md
 ```
