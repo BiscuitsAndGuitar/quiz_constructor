@@ -51,7 +51,9 @@ export function prepareFormForEditor(form) {
 export function formSavePayload(form) {
   // Все полученные настройки сохраняются, включая пока скрытые в интерфейсе.
   const { id, is_test, is_published, public_code, ...editable } = form
-  const payload = structuredClone(editable)
+  // После перемещения внутри массивов могут оставаться Vue-прокси; тело API — обычный JSON.
+  const payload = JSON.parse(JSON.stringify(editable))
+  for (const block of payload.blocks) block.title = block.title?.trim() || null
   if (payload.completion_message === '') payload.completion_message = null
   if (!payload.requires_login || payload.max_attempts === '') payload.max_attempts = null
   if (is_test) {
@@ -73,4 +75,63 @@ export function formSavePayload(form) {
     }
   }
   return payload
+}
+
+export function newBlock() {
+  return { key: crypto.randomUUID(), title: null, questions: [] }
+}
+
+export function addBlock(blocks, block) {
+  return [...blocks, block]
+}
+
+export function removeBlock(blocks, index) {
+  if (blocks.length <= 1 || index < 0 || index >= blocks.length) return blocks
+  return blocks.filter((_, position) => position !== index)
+}
+
+export function moveBlock(blocks, index, direction) {
+  const target = index + direction
+  if (![1, -1].includes(direction) || !blocks[index] || target < 0 || target >= blocks.length) return blocks
+  const result = [...blocks]
+  ;[result[index], result[target]] = [result[target], result[index]]
+  return result
+}
+
+export function canMoveQuestion(blocks, blockIndex, questionIndex, direction) {
+  const block = blocks[blockIndex]
+  if (!block?.questions[questionIndex]) return false
+  if (direction === -1) return questionIndex > 0 || blockIndex > 0
+  if (direction === 1) return questionIndex < block.questions.length - 1 || blockIndex < blocks.length - 1
+  return false
+}
+
+export function moveQuestion(blocks, blockIndex, questionIndex, direction) {
+  if (!canMoveQuestion(blocks, blockIndex, questionIndex, direction)) return blocks
+  const result = blocks.map(block => ({ ...block, questions: [...block.questions] }))
+  const questions = result[blockIndex].questions
+  const target = questionIndex + direction
+  const [question] = questions.splice(questionIndex, 1)
+  if (target < 0) result[blockIndex - 1].questions.push(question)
+  else if (target > questions.length) result[blockIndex + 1].questions.unshift(question)
+  else questions.splice(target, 0, question)
+  return result
+}
+
+export function questionNumbers(blocks) {
+  let number = 0
+  return blocks.map(block => block.questions.map(() => ++number))
+}
+
+export function formSnapshot(form) {
+  // JSON-снимок читает также вложенные Vue-поля; служебные флаги хранятся вне формы.
+  const state = formSavePayload(JSON.parse(JSON.stringify(form)))
+  // Пустое поле в браузере — строка, хотя сервер может прислать null.
+  state.description ??= ''
+  for (const row of state.grading_scale || []) row.message ??= ''
+  return JSON.stringify(state)
+}
+
+export function hasFormChanges(form, snapshot) {
+  return formSnapshot(form) !== snapshot
 }

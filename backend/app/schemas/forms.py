@@ -54,8 +54,18 @@ class QuestionData(BaseModel):
 
 class BlockData(BaseModel):
     key: str = Field(min_length=1)
-    title: str | None = Field(default=None, max_length=255)
+    title: str | None = None
     questions: list[QuestionData] = Field(default_factory=list)
+
+    @field_validator("title")
+    @classmethod
+    def check_title(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if len(value) > 255:
+            raise PydanticCustomError("form", "Название блока должно быть не длиннее 255 символов")
+        return value or None
 
 
 class FormSettings(FormTitle):

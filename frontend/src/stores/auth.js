@@ -9,6 +9,7 @@ export const useAuthStore = defineStore('auth', () => {
   const token = ref('')
   const initialized = ref(false)
   const initializationError = ref('')
+  const logoutRequested = ref(false)
   const homePath = computed(() => user.value?.is_author ? '/my/forms' : '/my/attempts')
   let initialization = null
 
@@ -72,5 +73,5 @@ export const useAuthStore = defineStore('auth', () => {
     return initialization
   }
 
-  return { user, token, initialized, initializationError, homePath, login, register, logout, initialize, loadUser }
+  return { user, token, initialized, initializationError, logoutRequested, homePath, login, register, logout, initialize, loadUser }
 })

@@ -4,9 +4,15 @@ import { useAuthStore } from '../stores/auth.js'
 
 const auth = useAuthStore()
 const router = useRouter()
-function logout() {
-  auth.logout()
-  router.replace('/')
+async function logout() {
+  if (auth.logoutRequested) return
+  // Удаляем токен только после разрешения редактора покинуть страницу.
+  auth.logoutRequested = true
+  try {
+    await router.replace('/')
+  } finally {
+    auth.logoutRequested = false
+  }
 }
 </script>
 

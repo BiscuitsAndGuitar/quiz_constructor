@@ -1,9 +1,11 @@
 <script setup>
-import { computed, ref, toRaw, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, onBeforeUnmount, ref, toRaw, watch } from 'vue'
+import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import { getForm, saveForm } from '../api/forms.js'
-import { formSavePayload, newQuestion, prepareFormForEditor, totalPoints } from '../utils/formEditor.js'
-import QuestionEditor from '../components/QuestionEditor.vue'
+import { addBlock, formSavePayload, formSnapshot, hasFormChanges, moveBlock, moveQuestion,
+  newBlock, prepareFormForEditor, questionNumbers, removeBlock, totalPoints } from '../utils/formEditor.js'
+import BlockEditor from '../components/BlockEditor.vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
 import FormSettings from '../components/FormSettings.vue'
 import GradingScaleEditor from '../components/GradingScaleEditor.vue'
 import NoAccessPage from './NoAccessPage.vue'
@@ -17,7 +19,33 @@ const saving = ref(false)
 const errorMessage = ref('')
 const errorStatus = ref(null)
 const saved = ref(false)
-const firstBlock = computed(() => form.value?.blocks[0])
+const snapshot = ref('')
+const leaveDialog = ref(null)
+const deleteDialog = ref(null)
+const dirty = computed(() => !!form.value && !form.value.is_published && hasFormChanges(form.value, snapshot.value))
+const numbers = computed(() => questionNumbers(form.value?.blocks || []))
+
+async function confirmLeave() {
+  if (!dirty.value) return true
+  return leaveDialog.value.ask({ title: 'Несохранённые изменения',
+    message: 'Несохранённые изменения будут потеряны. Сохраните их',
+    cancelText: 'Остаться', confirmText: 'Уйти без сохранения' })
+}
+
+onBeforeRouteLeave(confirmLeave)
+onBeforeRouteUpdate((to, from) => to.params.id !== from.params.id ? confirmLeave() : true)
+
+function beforeUnload(event) {
+  if (!dirty.value) return
+  event.preventDefault()
+  event.returnValue = ''
+}
+
+watch(dirty, changed => {
+  if (changed) window.addEventListener('beforeunload', beforeUnload)
+  else window.removeEventListener('beforeunload', beforeUnload)
+})
+onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
 
 function handleError(error) {
   errorMessage.value = error.message
@@ -34,7 +62,10 @@ async function loadForm(id) {
   form.value = null
   try {
     const result = await getForm(id)
-    if (route.params.id === id) form.value = prepareFormForEditor(result)
+    if (route.params.id === id) {
+      form.value = prepareFormForEditor(result)
+      snapshot.value = formSnapshot(form.value)
+    }
   } catch (error) {
     if (route.params.id === id) handleError(error)
   } finally {
@@ -42,14 +73,14 @@ async function loadForm(id) {
   }
 }
 
-function addQuestion() {
-  firstBlock.value.questions.push(newQuestion(form.value.is_test))
-  saved.value = false
-}
-
-function removeQuestion(index) {
-  firstBlock.value.questions.splice(index, 1)
-  saved.value = false
+async function deleteBlock(index) {
+  if (saving.value || form.value.is_published || form.value.blocks.length === 1) return
+  const block = form.value.blocks[index]
+  if (block.questions.length && !await deleteDialog.value.ask({ title: 'Удалить блок?',
+    message: `Будут удалены блок и вопросы в нём (${block.questions.length}). Продолжить?`,
+    confirmText: 'Удалить блок' })) return
+  const currentIndex = form.value.blocks.findIndex(item => item.key === block.key)
+  form.value.blocks = removeBlock(form.value.blocks, currentIndex)
 }
 
 async function save() {
@@ -64,6 +95,7 @@ async function save() {
     const result = await saveForm(id, formSavePayload(toRaw(form.value)))
     if (route.params.id === id) {
       form.value = result
+      snapshot.value = formSnapshot(form.value)
       saved.value = true
     }
   } catch (error) {
@@ -82,25 +114,33 @@ watch(() => route.params.id, loadForm, { immediate: true })
   <section v-else>
     <p v-if="loading" role="status">Загрузка…</p>
     <template v-else>
-      <div class="actions"><h1>{{ form?.is_test ? 'Конструктор теста' : 'Конструктор опроса' }}</h1><RouterLink to="/my/forms">К списку</RouterLink></div>
+      <h1>{{ form?.is_test ? 'Конструктор теста' : 'Конструктор опроса' }}</h1>
       <p v-if="errorMessage" role="alert" class="error">{{ errorMessage }}</p>
       <button v-if="!form" @click="loadForm(route.params.id)">Повторить</button>
       <template v-else>
         <p v-if="form.is_published" role="status">Опубликованную форму нельзя редактировать</p>
         <form novalidate @submit.prevent="save">
+          <div class="editor-toolbar">
+            <div class="field"><label for="form-title">Название</label><input id="form-title" v-model="form.title" :disabled="saving || form.is_published"></div>
+            <button :disabled="saving || form.is_published">{{ saving ? 'Сохраняем…' : 'Сохранить' }}</button>
+            <span v-if="dirty" role="status">Есть несохранённые изменения</span>
+            <span v-else-if="saved" role="status">Сохранено</span>
+            <RouterLink to="/my/forms">К списку</RouterLink>
+          </div>
           <fieldset :disabled="saving || form.is_published">
-            <div class="field"><label for="form-title">Название</label><input id="form-title" v-model="form.title" @input="saved = false"></div>
-            <div class="actions"><button :disabled="saving || form.is_published">{{ saving ? 'Сохраняем…' : 'Сохранить' }}</button><span v-if="saved" role="status">Сохранено</span></div>
-            <FormSettings :form="form" @change="saved = false" />
-            <template v-if="firstBlock">
-              <QuestionEditor v-for="(question, index) in firstBlock.questions" :key="question.key" :question="question" :number="index + 1" :is-test="form.is_test" :disabled="saving || form.is_published" @remove="removeQuestion(index)" @change="saved = false" />
-              <button type="button" @click="addQuestion">Добавить вопрос</button>
-            </template>
-            <GradingScaleEditor v-if="form.is_test" :scale="form.grading_scale" @change="saved = false" />
+            <FormSettings :form="form" />
+            <BlockEditor v-for="(block, index) in form.blocks" :key="block.key" :blocks="form.blocks" :index="index"
+              :numbers="numbers[index]" :is-test="form.is_test" :disabled="saving || form.is_published"
+              @remove="deleteBlock(index)" @move="form.blocks = moveBlock(form.blocks, index, $event)"
+              @move-question="(questionIndex, direction) => form.blocks = moveQuestion(form.blocks, index, questionIndex, direction)" />
+            <button type="button" @click="form.blocks = addBlock(form.blocks, newBlock())">Добавить блок</button>
+            <GradingScaleEditor v-if="form.is_test" :scale="form.grading_scale" />
             <p v-if="form.is_test" class="total-points">Всего баллов: {{ totalPoints(form) }}</p>
           </fieldset>
         </form>
       </template>
     </template>
   </section>
+  <ConfirmDialog ref="leaveDialog" />
+  <ConfirmDialog ref="deleteDialog" />
 </template>

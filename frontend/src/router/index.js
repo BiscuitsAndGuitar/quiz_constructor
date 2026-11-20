@@ -24,6 +24,7 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
   await auth.initialize()
+  if (to.path === '/' && auth.logoutRequested) auth.logout()
   if (!auth.user && (to.meta.requiresAuth || to.path.startsWith('/my/'))) {
     return { path: '/login', query: { redirect: to.fullPath } }
   }
