@@ -44,4 +44,14 @@ dialog h2 { margin-top: 0; }
 .option-row label { white-space: nowrap; }
 .option-row input { min-width: 0; flex: 1; }
 .remove-question { margin-top: 20px; }
+.form-settings { margin-top: 24px; }
+.form-settings h2 { margin: 0; }
+.correct-option { display: flex; align-items: center; gap: 6px; }
+.option-row .correct-option input { flex: none; }
+.grading-editor { margin-top: 32px; }
+.grading-editor td:first-child { min-width: 100px; width: 15%; }
+.grading-editor td:nth-child(2) { min-width: 120px; width: 20%; }
+.grading-editor td:nth-child(3) { min-width: 220px; }
+.grading-editor > button { margin-top: 12px; }
+.total-points { font-weight: bold; margin-top: 24px; }
 @media (max-width: 500px) { .option-row { flex-wrap: wrap; } .option-row label { width: 100%; } }

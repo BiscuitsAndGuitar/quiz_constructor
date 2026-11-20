@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field, StrictBool, field_validator, model_validator
+from pydantic import BaseModel, Field, StrictBool, StrictInt, field_validator, model_validator
 from pydantic_core import PydanticCustomError
 
 
@@ -23,6 +23,7 @@ class FormCreate(FormTitle):
 class ChoiceData(BaseModel):
     key: str = Field(min_length=1)
     text: str = Field(max_length=500)
+    is_correct: StrictBool | None = None
 
 
 class QuestionData(BaseModel):
@@ -31,6 +32,9 @@ class QuestionData(BaseModel):
     type: str
     is_answer_required: StrictBool = False
     options: list[ChoiceData] = Field(default_factory=list)
+    points: StrictInt | None = None
+    allow_partial_scoring: StrictBool | None = None
+    correct_text_answers: list[str] | None = None
 
     @field_validator("type")
     @classmethod
@@ -68,9 +72,16 @@ class FormSettings(FormTitle):
     completion_message: str | None = Field(default=None, max_length=1000)
 
 
+class GradeData(BaseModel):
+    min_percent: StrictInt
+    grade: str
+    message: str | None = None
+
+
 class FormSave(FormSettings):
     # Неизвестные поля Pydantic игнорирует, в том числе поля будущих этапов.
     blocks: list[BlockData] = Field(min_length=1)
+    grading_scale: list[GradeData] | None = None
 
     @model_validator(mode="after")
     def check_settings_and_keys(self):
@@ -103,6 +114,7 @@ class FormResponse(FormSettings):
     is_published: bool
     public_code: str
     blocks: list[BlockData]
+    grading_scale: list[GradeData] | None = None
 
 
 class FormListItem(BaseModel):

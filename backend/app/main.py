@@ -19,6 +19,9 @@ async def validation_error_handler(request, error: RequestValidationError):
     # Не возвращаем исходные данные ошибки: среди них может быть пароль.
     first = error.errors()[0]
     field = first["loc"][-1] if first["loc"] else None
+    location = first["loc"]
+    if "correct_text_answers" in location:
+        field = "correct_text_answers"
     if first["type"] in {"auth", "form"}:
         detail = first["msg"]
     else:
@@ -34,9 +37,21 @@ async def validation_error_handler(request, error: RequestValidationError):
             "key": "Укажите непустой ключ элемента",
             "text": "Укажите текст; вариант ответа должен быть не длиннее 500 символов",
             "type": "Укажите тип вопроса",
-            "max_attempts": "Максимум попыток должен быть целым числом допустимого размера или null",
-            "time_limit_minutes": "Ограничение времени должно быть целым числом допустимого размера или null",
+            "max_attempts": "Максимум попыток должен быть целым числом от 1 до 1000 или null",
+            "time_limit_minutes": "Ограничение времени должно быть целым числом от 1 до 1440 или null",
+            "points": "Укажите баллы — целое число от 1 до 1000",
+            "allow_partial_scoring": "Режим частичных баллов должен быть true или false",
+            "is_correct": "Признак верного ответа должен быть true или false",
+            "correct_text_answers": "Допустимые ответы должны быть списком строк",
+            "grading_scale": "Шкала оценок должна быть списком строк шкалы",
+            "min_percent": "Граница шкалы должна быть целым числом от 0 до 100",
+            "grade": "Оценка должна быть строкой от 1 до 20 символов",
+            "message": "Сообщение оценки должно быть текстом до 1000 символов или null",
         }.get(field, "Неверные данные запроса")
+    if "questions" in location and field in {"points", "allow_partial_scoring", "is_correct", "correct_text_answers"}:
+        index = location.index("questions")
+        if len(location) > index + 1 and isinstance(location[index + 1], int):
+            detail = f"Вопрос {location[index + 1] + 1}: {detail}"
     return JSONResponse(status_code=422, content={"detail": detail})
 
 

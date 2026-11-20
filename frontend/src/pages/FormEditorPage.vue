@@ -2,8 +2,10 @@
 import { computed, ref, toRaw, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getForm, saveForm } from '../api/forms.js'
-import { formSavePayload, newQuestion } from '../utils/formEditor.js'
+import { formSavePayload, newQuestion, prepareFormForEditor, totalPoints } from '../utils/formEditor.js'
 import QuestionEditor from '../components/QuestionEditor.vue'
+import FormSettings from '../components/FormSettings.vue'
+import GradingScaleEditor from '../components/GradingScaleEditor.vue'
 import NoAccessPage from './NoAccessPage.vue'
 import NotFoundPage from './NotFoundPage.vue'
 
@@ -32,7 +34,7 @@ async function loadForm(id) {
   form.value = null
   try {
     const result = await getForm(id)
-    if (route.params.id === id) form.value = result
+    if (route.params.id === id) form.value = prepareFormForEditor(result)
   } catch (error) {
     if (route.params.id === id) handleError(error)
   } finally {
@@ -41,7 +43,7 @@ async function loadForm(id) {
 }
 
 function addQuestion() {
-  firstBlock.value.questions.push(newQuestion())
+  firstBlock.value.questions.push(newQuestion(form.value.is_test))
   saved.value = false
 }
 
@@ -84,17 +86,18 @@ watch(() => route.params.id, loadForm, { immediate: true })
       <p v-if="errorMessage" role="alert" class="error">{{ errorMessage }}</p>
       <button v-if="!form" @click="loadForm(route.params.id)">Повторить</button>
       <template v-else>
-        <p v-if="form.is_test">Баллы, правильные ответы и шкала оценок появятся на следующем этапе</p>
         <p v-if="form.is_published" role="status">Опубликованную форму нельзя редактировать</p>
         <form novalidate @submit.prevent="save">
           <fieldset :disabled="saving || form.is_published">
             <div class="field"><label for="form-title">Название</label><input id="form-title" v-model="form.title" @input="saved = false"></div>
             <div class="actions"><button :disabled="saving || form.is_published">{{ saving ? 'Сохраняем…' : 'Сохранить' }}</button><span v-if="saved" role="status">Сохранено</span></div>
-            <div class="field form-description"><label for="form-description">Описание</label><textarea id="form-description" v-model="form.description" rows="3" @input="saved = false"></textarea></div>
+            <FormSettings :form="form" @change="saved = false" />
             <template v-if="firstBlock">
               <QuestionEditor v-for="(question, index) in firstBlock.questions" :key="question.key" :question="question" :number="index + 1" :is-test="form.is_test" :disabled="saving || form.is_published" @remove="removeQuestion(index)" @change="saved = false" />
               <button type="button" @click="addQuestion">Добавить вопрос</button>
             </template>
+            <GradingScaleEditor v-if="form.is_test" :scale="form.grading_scale" @change="saved = false" />
+            <p v-if="form.is_test" class="total-points">Всего баллов: {{ totalPoints(form) }}</p>
           </fieldset>
         </form>
       </template>

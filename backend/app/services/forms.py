@@ -5,15 +5,12 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Attempt, Block, Form, Question, QuestionChoice, QuestionType
+from app.models import Attempt, Block, CorrectTextAnswer, Form, GradingScale, Question, QuestionChoice, QuestionType
 from app.schemas.forms import FormSave, FormSettings
+from app.services.form_validation import InvalidFormError, validate_form
 
 
 class PublishedFormError(Exception):
-    pass
-
-
-class InvalidFormError(Exception):
     pass
 
 
@@ -74,16 +71,30 @@ def build_form_response(db: Session, form: Form) -> dict:
     ).all()
     choices_by_question = {}
     for choice in choices:
-        choices_by_question.setdefault(choice.question_id, []).append(
-            {"key": f"o{choice.id}", "text": choice.text}
-        )
+        item = {"key": f"o{choice.id}", "text": choice.text}
+        if form.is_test:
+            item["is_correct"] = choice.is_correct
+        choices_by_question.setdefault(choice.question_id, []).append(item)
+    answers_by_question = {}
+    if form.is_test:
+        # У допустимых ответов нет position: id сохраняет порядок вставки списка.
+        answers = db.scalars(select(CorrectTextAnswer).join(Question).join(Block)
+                             .where(Block.form_id == form.id).order_by(CorrectTextAnswer.id))
+        for answer in answers:
+            answers_by_question.setdefault(answer.question_id, []).append(answer.answer_text)
     questions_by_block = {}
     for question, question_type in questions:
-        questions_by_block.setdefault(question.block_id, []).append({
+        item = {
             "key": f"q{question.id}", "text": question.text, "type": question_type,
             "is_answer_required": question.is_answer_required,
             "options": choices_by_question.get(question.id, []),
-        })
+        }
+        if form.is_test:
+            item["points"] = question.points
+            item["allow_partial_scoring"] = question.allow_partial_scoring if question_type == "multiple" else False
+            if question_type == "text":
+                item["correct_text_answers"] = answers_by_question.get(question.id, [])
+        questions_by_block.setdefault(question.block_id, []).append(item)
     result = {field: getattr(form, field) for field in FormSettings.model_fields}
     result.update({
         "id": form.id, "is_test": form.is_test, "is_published": form.is_published,
@@ -91,6 +102,11 @@ def build_form_response(db: Session, form: Form) -> dict:
         "blocks": [{"key": f"b{block.id}", "title": block.title,
                     "questions": questions_by_block.get(block.id, [])} for block in blocks],
     })
+    if form.is_test:
+        scale = db.scalars(select(GradingScale).where(GradingScale.form_id == form.id)
+                           .order_by(GradingScale.min_percent, GradingScale.id))
+        result["grading_scale"] = [{"min_percent": row.min_percent, "grade": row.grade,
+                                    "message": row.message} for row in scale]
     return result
 
 
@@ -100,13 +116,10 @@ def save_form(db: Session, form: Form, data: FormSave) -> dict:
         db.refresh(form, with_for_update=True)
         if form.is_published:
             raise PublishedFormError("Опубликованную форму нельзя редактировать")
-        if not form.is_test and (
-            data.shuffle_questions or data.time_limit_minutes is not None
-            or data.show_correct_answers or data.show_results_by_block
-        ):
-            raise InvalidFormError("Настройки теста нельзя задавать у опроса")
+        validate_form(data, form.is_test)
         type_ids = dict(db.execute(select(QuestionType.type, QuestionType.id)).all())
         db.execute(delete(Block).where(Block.form_id == form.id))
+        db.execute(delete(GradingScale).where(GradingScale.form_id == form.id))
         for field in FormSettings.model_fields:
             setattr(form, field, getattr(data, field))
         for block_position, block_data in enumerate(data.blocks, start=1):
@@ -118,12 +131,22 @@ def save_form(db: Session, form: Form, data: FormSave) -> dict:
                     block_id=block.id, type_id=type_ids[question_data.type], text=question_data.text,
                     is_answer_required=question_data.is_answer_required if not form.is_test else False,
                     position=question_position,
+                    points=question_data.points if form.is_test else None,
+                    allow_partial_scoring=bool(question_data.allow_partial_scoring) if form.is_test else False,
                 )
                 db.add(question)
                 db.flush()
                 for choice_position, choice_data in enumerate(question_data.options, start=1):
                     db.add(QuestionChoice(question_id=question.id, text=choice_data.text,
-                                          position=choice_position))
+                                          position=choice_position,
+                                          is_correct=bool(choice_data.is_correct) if form.is_test else False))
+                if form.is_test:
+                    for answer in question_data.correct_text_answers:
+                        db.add(CorrectTextAnswer(question_id=question.id, answer_text=answer))
+        if form.is_test:
+            for row in data.grading_scale or []:
+                db.add(GradingScale(form_id=form.id, min_percent=row.min_percent,
+                                    grade=row.grade, message=row.message))
         db.flush()
         result = build_form_response(db, form)
         db.commit()

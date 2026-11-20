@@ -167,7 +167,8 @@ def test_draft_accepts_incomplete_content_and_ignores_future_fields(client, db_s
     data.update({"is_test": False, "public_code": "changed", "is_published": True,
                  "grading_scale": [{"min_percent": 0, "grade": "5"}]})
     question = data["blocks"][0]["questions"][0]
-    question.update({"text": "", "points": 10, "correct_text_answers": ["yes"], "condition": {},
+    data["blocks"][0]["questions"][1]["points"] = 1
+    question.update({"text": "", "points": 10, "correct_text_answers": [], "condition": {},
                      "finish_rules": [{}], "image_id": 123, "allow_partial_scoring": True})
     question["options"] = [{"key": "empty", "text": "", "is_correct": True}]
     response = client.put(f"/forms/{form['id']}", json=data, headers=headers(users[0]))
@@ -176,18 +177,20 @@ def test_draft_accepts_incomplete_content_and_ignores_future_fields(client, db_s
     assert saved["is_test"] is True and saved["is_published"] is False
     assert saved["public_code"] == form["public_code"]
     q = saved["blocks"][0]["questions"][0]
-    assert set(q) == {"key", "text", "type", "is_answer_required", "options"}
+    assert set(q) == {"key", "text", "type", "is_answer_required", "options", "points", "allow_partial_scoring"}
     assert q["is_answer_required"] is False
-    assert set(q["options"][0]) == {"key", "text"}
+    assert set(q["options"][0]) == {"key", "text", "is_correct"}
     stored = db_session.get(Question, int(q["key"][1:]))
-    assert stored.points is None and stored.image_id is None and not stored.allow_partial_scoring
-    assert not db_session.get(QuestionChoice, int(q["options"][0]["key"][1:])).is_correct
+    assert stored.points == 10 and stored.image_id is None and not stored.allow_partial_scoring
+    assert db_session.get(QuestionChoice, int(q["options"][0]["key"][1:])).is_correct
 
 
 def test_preserve_all_settings(client, users):
     form = create(client, users[0], True)
     url = f"/forms/{form['id']}"
     data = draft()
+    for question in data["blocks"][0]["questions"]:
+        question["points"] = 1
     data.update({"requires_login": True, "max_attempts": 2, "time_limit_minutes": 30,
                  "take_by_blocks": True, "allow_free_navigation": True, "shuffle_questions": True,
                  "shuffle_answer_options": True, "show_correct_answers": True, "show_results_by_block": True})

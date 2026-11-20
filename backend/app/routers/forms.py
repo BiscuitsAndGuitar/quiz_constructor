@@ -21,12 +21,12 @@ def create_form(data: FormCreate, user: User = Depends(require_author), db: Sess
     return forms_service.build_form_response(db, form)
 
 
-@router.get("/forms/{id}", response_model=FormResponse)
+@router.get("/forms/{id}", response_model=FormResponse, response_model_exclude_unset=True)
 def get_form(form: Form = Depends(get_owned_form), db: Session = Depends(get_db)):
     return forms_service.build_form_response(db, form)
 
 
-@router.put("/forms/{id}", response_model=FormResponse)
+@router.put("/forms/{id}", response_model=FormResponse, response_model_exclude_unset=True)
 def save_form(data: FormSave, form: Form = Depends(get_owned_form), db: Session = Depends(get_db)):
     try:
         return forms_service.save_form(db, form, data)
