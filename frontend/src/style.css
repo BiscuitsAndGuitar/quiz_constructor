@@ -66,3 +66,10 @@ dialog h2 { margin-top: 0; }
 .condition-row label { flex: 1 1 180px; min-width: 0; }
 .condition-row select { width: 100%; }
 .finish-rules fieldset { margin: 12px 0; }
+.collapse-actions { margin: 16px 0; }
+.question-actions .remove-question { margin-top: 0; }
+.card-summary { flex: 1; min-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.message-dialog { position: fixed; inset: 0; margin: auto; max-height: 85vh; overflow: auto; overflow-wrap: anywhere; }
+.message-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.message-heading h2 { margin-top: 0; }
+.message-dialog::backdrop { background: rgb(0 0 0 / 45%); }

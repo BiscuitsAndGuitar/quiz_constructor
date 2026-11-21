@@ -11,6 +11,8 @@ import GradingScaleEditor from '../components/GradingScaleEditor.vue'
 import NoAccessPage from './NoAccessPage.vue'
 import NotFoundPage from './NotFoundPage.vue'
 import { deletionReferences, referenceErrors } from '../utils/conditions.js'
+import MessageDialog from '../components/MessageDialog.vue'
+import { collapseAllSections, settingsSection, gradingSection, expandForErrors, remapCollapsed, toggleCollapsed } from '../utils/editorDisplay.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -23,6 +25,9 @@ const saved = ref(false)
 const snapshot = ref('')
 const leaveDialog = ref(null)
 const deleteDialog = ref(null)
+const messageDialog = ref(null)
+// Только состояние отображения: не входит в форму, снимок и запрос сохранения.
+const collapsed = ref(new Set())
 const dirty = computed(() => !!form.value && !form.value.is_published && hasFormChanges(form.value, snapshot.value))
 const numbers = computed(() => questionNumbers(form.value?.blocks || []))
 
@@ -48,8 +53,16 @@ watch(dirty, changed => {
 })
 onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
 
-function handleError(error) {
-  errorMessage.value = error.message
+function showMessage(message) {
+  messageDialog.value.show(message)
+}
+
+function handleError(error, savingError = false) {
+  if (savingError) {
+    const detail = error.detail ?? error.message
+    collapsed.value = expandForErrors(collapsed.value, detail)
+    messageDialog.value.show(detail, 'Не удалось сохранить форму')
+  } else errorMessage.value = error.message
   errorStatus.value = error.status
   if (error.status === 401) router.replace({ path: '/login', query: { redirect: route.fullPath } })
   if (error.status === 409 && form.value) form.value.is_published = true
@@ -61,6 +74,7 @@ async function loadForm(id) {
   errorStatus.value = null
   saved.value = false
   form.value = null
+  collapsed.value = new Set()
   try {
     const result = await getForm(id)
     if (route.params.id === id) {
@@ -79,7 +93,7 @@ async function deleteBlock(index) {
   const block = form.value.blocks[index]
   const places = deletionReferences(form.value.blocks, block.questions.map(question => question.key), null, index)
   if (places.length) {
-    errorMessage.value = `Нельзя удалить блок: на его вопросы ссылаются ${places.join('; ')}. Сначала удалите ссылки.`
+    showMessage(['Нельзя удалить блок. Сначала удалите ссылки:', ...places])
     return
   }
   if (block.questions.length && !await deleteDialog.value.ask({ title: 'Удалить блок?',
@@ -92,7 +106,7 @@ async function deleteBlock(index) {
 function applyMove(blocks) {
   const errors = referenceErrors(blocks)
   if (errors.length) {
-    errorMessage.value = `Нельзя переместить. ${errors.join('; ')}. Сначала измените условия.`
+    showMessage(['Нельзя переместить. Сначала измените условия:', ...errors])
     return
   }
   errorMessage.value = ''
@@ -110,12 +124,13 @@ async function save() {
     // Снимок всего ответа GET сохраняет настройки и остальные блоки, если они созданы через API.
     const result = await saveForm(id, formSavePayload(toRaw(form.value)))
     if (route.params.id === id) {
+      collapsed.value = remapCollapsed(collapsed.value, form.value.blocks, result.blocks)
       form.value = result
       snapshot.value = formSnapshot(form.value)
       saved.value = true
     }
   } catch (error) {
-    if (route.params.id === id) handleError(error)
+    if (route.params.id === id) handleError(error, true)
   } finally {
     saving.value = false
   }
@@ -143,15 +158,20 @@ watch(() => route.params.id, loadForm, { immediate: true })
             <span v-else-if="saved" role="status">Сохранено</span>
             <RouterLink to="/my/forms">К списку</RouterLink>
           </div>
+          <div class="actions collapse-actions">
+            <button type="button" @click="collapsed = collapseAllSections(form)">Свернуть всё</button>
+            <button type="button" @click="collapsed = new Set()">Развернуть всё</button>
+          </div>
           <fieldset :disabled="saving || form.is_published">
-            <FormSettings :form="form" />
+            <FormSettings :form="form" :collapsed="collapsed.has(settingsSection)" @toggle="collapsed = toggleCollapsed(collapsed, settingsSection)" />
             <BlockEditor v-for="(block, index) in form.blocks" :key="block.key" :blocks="form.blocks" :index="index"
               :numbers="numbers[index]" :is-test="form.is_test" :disabled="saving || form.is_published"
-              @error="errorMessage = $event"
+              :collapsed="collapsed" @toggle="collapsed = toggleCollapsed(collapsed, $event)"
+              @error="showMessage"
               @remove="deleteBlock(index)" @move="applyMove(moveBlock(form.blocks, index, $event))"
               @move-question="(questionIndex, direction) => applyMove(moveQuestion(form.blocks, index, questionIndex, direction))" />
             <button type="button" @click="form.blocks = addBlock(form.blocks, newBlock())">Добавить блок</button>
-            <GradingScaleEditor v-if="form.is_test" :scale="form.grading_scale" />
+            <GradingScaleEditor v-if="form.is_test" :scale="form.grading_scale" :collapsed="collapsed.has(gradingSection)" @toggle="collapsed = toggleCollapsed(collapsed, gradingSection)" />
             <p v-if="form.is_test" class="total-points">Всего баллов: {{ totalPoints(form) }}</p>
           </fieldset>
         </form>
@@ -160,4 +180,5 @@ watch(() => route.params.id, loadForm, { immediate: true })
   </section>
   <ConfirmDialog ref="leaveDialog" />
   <ConfirmDialog ref="deleteDialog" />
+  <MessageDialog ref="messageDialog" />
 </template>

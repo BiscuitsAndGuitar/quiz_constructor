@@ -3,10 +3,11 @@ import { changeQuestionType, newOption } from '../utils/formEditor.js'
 import { availableQuestions, deletionReferences, typeChangeErrors } from '../utils/conditions.js'
 import ConditionEditor from './ConditionEditor.vue'
 import FinishRulesEditor from './FinishRulesEditor.vue'
+import { questionSummary, questionTypeNames } from '../utils/editorDisplay.js'
 
 const props = defineProps({ question: { type: Object, required: true }, number: Number, isTest: Boolean, disabled: Boolean, canMoveUp: Boolean, canMoveDown: Boolean,
-  blocks: { type: Array, required: true }, blockIndex: Number, questionIndex: Number })
-const emit = defineEmits(['remove', 'change', 'move', 'error'])
+  blocks: { type: Array, required: true }, blockIndex: Number, questionIndex: Number, collapsed: Boolean })
+const emit = defineEmits(['remove', 'change', 'move', 'error', 'toggle'])
 
 function changeType(event) {
   const errors = typeChangeErrors(props.blocks, props.question.key, event.target.value)
@@ -34,11 +35,17 @@ function chooseCorrect(selected) {
 
 <template>
   <fieldset class="question-editor" :disabled="disabled" @input="$emit('change')" @change="$emit('change')">
-    <legend>Вопрос {{ number }} <span v-if="!isTest && question.finish_rules?.length">— Есть правила завершения ({{ question.finish_rules.length }})</span></legend>
+    <legend>Вопрос {{ number }}</legend>
     <div class="actions question-actions">
+      <button type="button" :title="collapsed ? 'Развернуть вопрос' : 'Свернуть вопрос'" :aria-expanded="!collapsed" @click="$emit('toggle')">{{ collapsed ? '▸' : '▾' }}</button>
+      <span v-if="collapsed" class="card-summary" :title="question.text">{{ questionSummary(question) }} · {{ questionTypeNames[question.type] }}</span>
+      <span v-if="question.condition" class="hint">есть условие</span>
+      <span v-if="!isTest && question.finish_rules?.length" class="hint">правила завершения: {{ question.finish_rules.length }}</span>
       <button type="button" title="Вверх" :aria-label="`Вопрос ${number}: вверх`" :disabled="disabled || !canMoveUp" @click="$emit('move', -1)">↑</button>
       <button type="button" title="Вниз" :aria-label="`Вопрос ${number}: вниз`" :disabled="disabled || !canMoveDown" @click="$emit('move', 1)">↓</button>
+      <button type="button" class="remove-question" @click="$emit('remove')">Удалить вопрос</button>
     </div>
+    <div v-show="!collapsed">
     <div class="field"><label :for="`${question.key}-text`">Текст вопроса</label><textarea :id="`${question.key}-text`" v-model="question.text" rows="3"></textarea></div>
     <div class="field">
       <label :for="`${question.key}-type`">Тип вопроса</label>
@@ -82,6 +89,6 @@ function chooseCorrect(selected) {
       <ConditionEditor v-model="question.condition" :questions="availableQuestions(blocks, blockIndex, questionIndex)" />
       <FinishRulesEditor v-if="question.type !== 'info'" :question="question" :questions="availableQuestions(blocks, blockIndex, questionIndex, true)" />
     </template>
-    <button type="button" class="remove-question" @click="$emit('remove')">Удалить вопрос</button>
+    </div>
   </fieldset>
 </template>

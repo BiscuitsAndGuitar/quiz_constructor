@@ -1,11 +1,13 @@
 <script setup>
-defineProps({ scale: { type: Array, required: true } })
-defineEmits(['change'])
+defineProps({ scale: { type: Array, required: true }, collapsed: Boolean })
+defineEmits(['change', 'toggle'])
 </script>
 
 <template>
   <section class="grading-editor" @input="$emit('change')" @change="$emit('change')">
-    <h2>Шкала оценок</h2>
+    <h2><button type="button" :title="collapsed ? 'Развернуть шкалу оценок' : 'Свернуть шкалу оценок'" :aria-expanded="!collapsed" @click="$emit('toggle')">{{ collapsed ? '▸' : '▾' }}</button> Шкала оценок</h2>
+    <p v-if="collapsed">Строк: {{ scale.length }}</p>
+    <div v-show="!collapsed">
     <p class="hint">Если шкала заполнена, добавьте строку от 0%. Границы не должны повторяться.</p>
     <div class="table-scroll">
       <table>
@@ -21,5 +23,6 @@ defineEmits(['change'])
       </table>
     </div>
     <button type="button" @click="scale.push({ min_percent: 0, grade: '', message: null }); $emit('change')">Добавить оценку</button>
+    </div>
   </section>
 </template>
