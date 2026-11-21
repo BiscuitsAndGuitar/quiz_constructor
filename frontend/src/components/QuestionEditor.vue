@@ -1,11 +1,30 @@
 <script setup>
 import { changeQuestionType, newOption } from '../utils/formEditor.js'
+import { availableQuestions, deletionReferences, typeChangeErrors } from '../utils/conditions.js'
+import ConditionEditor from './ConditionEditor.vue'
+import FinishRulesEditor from './FinishRulesEditor.vue'
 
-const props = defineProps({ question: { type: Object, required: true }, number: Number, isTest: Boolean, disabled: Boolean, canMoveUp: Boolean, canMoveDown: Boolean })
-defineEmits(['remove', 'change', 'move'])
+const props = defineProps({ question: { type: Object, required: true }, number: Number, isTest: Boolean, disabled: Boolean, canMoveUp: Boolean, canMoveDown: Boolean,
+  blocks: { type: Array, required: true }, blockIndex: Number, questionIndex: Number })
+const emit = defineEmits(['remove', 'change', 'move', 'error'])
 
 function changeType(event) {
+  const errors = typeChangeErrors(props.blocks, props.question.key, event.target.value)
+  if (errors.length) {
+    event.target.value = props.question.type
+    emit('error', `Нельзя изменить тип. ${errors.join('; ')}. Сначала измените условия.`)
+    return
+  }
   changeQuestionType(props.question, event.target.value)
+}
+
+function removeOption(index) {
+  const places = deletionReferences(props.blocks, [], props.question.options[index].key)
+  if (places.length) {
+    emit('error', `Нельзя удалить вариант: на него ссылаются ${places.join('; ')}. Сначала удалите ссылки.`)
+    return
+  }
+  props.question.options.splice(index, 1)
 }
 
 function chooseCorrect(selected) {
@@ -15,7 +34,7 @@ function chooseCorrect(selected) {
 
 <template>
   <fieldset class="question-editor" :disabled="disabled" @input="$emit('change')" @change="$emit('change')">
-    <legend>Вопрос {{ number }}</legend>
+    <legend>Вопрос {{ number }} <span v-if="!isTest && question.finish_rules?.length">— Есть правила завершения ({{ question.finish_rules.length }})</span></legend>
     <div class="actions question-actions">
       <button type="button" title="Вверх" :aria-label="`Вопрос ${number}: вверх`" :disabled="disabled || !canMoveUp" @click="$emit('move', -1)">↑</button>
       <button type="button" title="Вниз" :aria-label="`Вопрос ${number}: вниз`" :disabled="disabled || !canMoveDown" @click="$emit('move', 1)">↓</button>
@@ -44,7 +63,7 @@ function chooseCorrect(selected) {
           <input v-if="question.type === 'single'" type="radio" :name="`${question.key}-correct`" :checked="option.is_correct" @change="chooseCorrect(option)">
           <input v-else v-model="option.is_correct" type="checkbox"> Верный
         </label>
-        <button type="button" :aria-label="`Удалить вариант ${index + 1}`" @click="question.options.splice(index, 1); $emit('change')">Удалить</button>
+        <button type="button" :aria-label="`Удалить вариант ${index + 1}`" @click="removeOption(index)">Удалить</button>
       </div>
       <button type="button" @click="question.options.push(newOption(isTest)); $emit('change')">Добавить вариант</button>
       <p v-if="isTest" class="hint">Если нужен вариант «все перечисленные», формулируйте его как «Все варианты верны»: при перемешивании порядок вариантов меняется</p>
@@ -58,6 +77,11 @@ function chooseCorrect(selected) {
       </div>
       <button type="button" @click="question.correct_text_answers.push(''); $emit('change')">Добавить ответ</button>
     </div>
+    <template v-if="!isTest">
+      <h3>Условие показа вопроса</h3>
+      <ConditionEditor v-model="question.condition" :questions="availableQuestions(blocks, blockIndex, questionIndex)" />
+      <FinishRulesEditor v-if="question.type !== 'info'" :question="question" :questions="availableQuestions(blocks, blockIndex, questionIndex, true)" />
+    </template>
     <button type="button" class="remove-question" @click="$emit('remove')">Удалить вопрос</button>
   </fieldset>
 </template>

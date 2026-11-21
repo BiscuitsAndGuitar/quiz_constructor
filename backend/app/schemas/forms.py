@@ -26,6 +26,24 @@ class ChoiceData(BaseModel):
     is_correct: StrictBool | None = None
 
 
+class ConditionItemData(BaseModel):
+    question: str
+    operator: str
+    option: str | None = None
+    text_answer: str | None = None
+
+
+class ConditionData(BaseModel):
+    match_all: StrictBool
+    items: list[ConditionItemData]
+
+
+class FinishRuleData(BaseModel):
+    key: str = Field(min_length=1)
+    message: str | None = None
+    condition: ConditionData
+
+
 class QuestionData(BaseModel):
     key: str = Field(min_length=1)
     text: str
@@ -35,6 +53,8 @@ class QuestionData(BaseModel):
     points: StrictInt | None = None
     allow_partial_scoring: StrictBool | None = None
     correct_text_answers: list[str] | None = None
+    condition: ConditionData | None = None
+    finish_rules: list[FinishRuleData] = Field(default_factory=list)
 
     @field_validator("type")
     @classmethod
@@ -56,6 +76,7 @@ class BlockData(BaseModel):
     key: str = Field(min_length=1)
     title: str | None = None
     questions: list[QuestionData] = Field(default_factory=list)
+    condition: ConditionData | None = None
 
     @field_validator("title")
     @classmethod
@@ -103,8 +124,9 @@ class FormSave(FormSettings):
             for question in block.questions:
                 keys.append(question.key)
                 keys.extend(option.key for option in question.options)
+                keys.extend(rule.key for rule in question.finish_rules)
         if len(keys) != len(set(keys)):
-            raise PydanticCustomError("form", "Ключи блоков, вопросов и вариантов должны быть уникальными")
+            raise PydanticCustomError("form", "Ключи блоков, вопросов, вариантов и правил должны быть уникальными")
         return self
 
 

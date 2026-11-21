@@ -1,12 +1,24 @@
 <script setup>
 import QuestionEditor from './QuestionEditor.vue'
+import ConditionEditor from './ConditionEditor.vue'
+import { availableQuestions, deletionReferences } from '../utils/conditions.js'
 import { canMoveQuestion, newQuestion } from '../utils/formEditor.js'
 
 const props = defineProps({
   blocks: { type: Array, required: true }, index: { type: Number, required: true },
   numbers: { type: Array, required: true }, isTest: Boolean, disabled: Boolean,
 })
-defineEmits(['remove', 'move', 'move-question'])
+const emit = defineEmits(['remove', 'move', 'move-question', 'error'])
+
+function removeQuestion(index) {
+  const question = props.blocks[props.index].questions[index]
+  const places = deletionReferences(props.blocks, [question.key])
+  if (places.length) {
+    emit('error', `Нельзя удалить вопрос: на него ссылаются ${places.join('; ')}. Сначала удалите ссылки.`)
+    return
+  }
+  props.blocks[props.index].questions.splice(index, 1)
+}
 
 function addQuestion() {
   props.blocks[props.index].questions.push(newQuestion(props.isTest))
@@ -27,11 +39,15 @@ function addQuestion() {
       <input :id="`${blocks[index].key}-title`" v-model="blocks[index].title">
       <p class="hint">Необязательно, до 255 символов</p>
     </div>
+    <section v-if="!isTest"><h3>Условие показа блока</h3>
+      <ConditionEditor v-model="blocks[index].condition" :questions="availableQuestions(blocks, index)" />
+    </section>
     <QuestionEditor v-for="(question, questionIndex) in blocks[index].questions" :key="question.key"
+      :blocks="blocks" :block-index="index" :question-index="questionIndex"
       :question="question" :number="numbers[questionIndex]" :is-test="isTest" :disabled="disabled"
       :can-move-up="canMoveQuestion(blocks, index, questionIndex, -1)"
       :can-move-down="canMoveQuestion(blocks, index, questionIndex, 1)"
-      @move="$emit('move-question', questionIndex, $event)" @remove="blocks[index].questions.splice(questionIndex, 1)" />
+      @move="$emit('move-question', questionIndex, $event)" @remove="removeQuestion(questionIndex)" @error="$emit('error', $event)" />
     <button type="button" @click="addQuestion">Добавить вопрос</button>
   </fieldset>
 </template>

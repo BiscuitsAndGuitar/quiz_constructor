@@ -59,7 +59,10 @@ export function formSavePayload(form) {
   if (is_test) {
     if (payload.grading_scale) payload.grading_scale = sortGradingScale(payload.grading_scale)
     for (const block of payload.blocks) {
+      delete block.condition
       for (const question of block.questions) {
+        delete question.condition
+        delete question.finish_rules
         delete question.is_answer_required
         if (question.type !== 'text') delete question.correct_text_answers
         if (question.type !== 'multiple') question.allow_partial_scoring = false
@@ -129,6 +132,11 @@ export function formSnapshot(form) {
   // Пустое поле в браузере — строка, хотя сервер может прислать null.
   state.description ??= ''
   for (const row of state.grading_scale || []) row.message ??= ''
+  for (const block of state.blocks) {
+    for (const question of block.questions) {
+      for (const rule of question.finish_rules || []) rule.message ??= ''
+    }
+  }
   return JSON.stringify(state)
 }
 

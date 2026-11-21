@@ -168,8 +168,9 @@ def test_draft_accepts_incomplete_content_and_ignores_future_fields(client, db_s
                  "grading_scale": [{"min_percent": 0, "grade": "5"}]})
     question = data["blocks"][0]["questions"][0]
     data["blocks"][0]["questions"][1]["points"] = 1
-    question.update({"text": "", "points": 10, "correct_text_answers": [], "condition": {},
-                     "finish_rules": [{}], "image_id": 123, "allow_partial_scoring": True})
+    # Условия и правила уже поддерживаются и больше не являются игнорируемыми полями.
+    question.update({"text": "", "points": 10, "correct_text_answers": [],
+                     "image_id": 123, "allow_partial_scoring": True})
     question["options"] = [{"key": "empty", "text": "", "is_correct": True}]
     response = client.put(f"/forms/{form['id']}", json=data, headers=headers(users[0]))
     assert response.status_code == 200

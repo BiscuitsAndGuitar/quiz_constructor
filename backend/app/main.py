@@ -46,7 +46,15 @@ async def validation_error_handler(request, error: RequestValidationError):
             "grading_scale": "Шкала оценок должна быть списком строк шкалы",
             "min_percent": "Граница шкалы должна быть целым числом от 0 до 100",
             "grade": "Оценка должна быть строкой от 1 до 20 символов",
-            "message": "Сообщение оценки должно быть текстом до 1000 символов или null",
+            "message": "Сообщение должно быть текстом до 1000 символов или null",
+            "condition": "Укажите условие в формате {match_all, items}; у правила оно обязательно",
+            "match_all": "Выберите связку условий: true — все, false — любое",
+            "items": "Условия должны быть списком простых условий",
+            "question": "Укажите ключ вопроса для условия",
+            "operator": "Укажите оператор условия",
+            "option": "Укажите ключ варианта ответа для условия",
+            "text_answer": "Значение текстового условия должно быть строкой",
+            "finish_rules": "Правила завершения должны быть списком",
         }.get(field, "Неверные данные запроса")
     if "questions" in location and field in {"points", "allow_partial_scoring", "is_correct", "correct_text_answers"}:
         index = location.index("questions")

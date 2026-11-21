@@ -8,6 +8,9 @@ from sqlalchemy.orm import Session
 from app.models import Attempt, Block, CorrectTextAnswer, Form, GradingScale, Question, QuestionChoice, QuestionType
 from app.schemas.forms import FormSave, FormSettings
 from app.services.form_validation import InvalidFormError, validate_form
+from app.models import ConditionOperator
+from app.services.conditions import validate_conditions
+from app.services.condition_storage import add_conditions_to_response, save_conditions
 
 
 class PublishedFormError(Exception):
@@ -107,6 +110,8 @@ def build_form_response(db: Session, form: Form) -> dict:
                            .order_by(GradingScale.min_percent, GradingScale.id))
         result["grading_scale"] = [{"min_percent": row.min_percent, "grade": row.grade,
                                     "message": row.message} for row in scale]
+    if not form.is_test:
+        add_conditions_to_response(db, result)
     return result
 
 
@@ -117,15 +122,19 @@ def save_form(db: Session, form: Form, data: FormSave) -> dict:
         if form.is_published:
             raise PublishedFormError("Опубликованную форму нельзя редактировать")
         validate_form(data, form.is_test)
+        operator_ids = dict(db.execute(select(ConditionOperator.operator, ConditionOperator.id)).all())
+        validate_conditions([block.model_dump(exclude_unset=True) for block in data.blocks], form.is_test, set(operator_ids))
         type_ids = dict(db.execute(select(QuestionType.type, QuestionType.id)).all())
         db.execute(delete(Block).where(Block.form_id == form.id))
         db.execute(delete(GradingScale).where(GradingScale.form_id == form.id))
         for field in FormSettings.model_fields:
             setattr(form, field, getattr(data, field))
+        block_ids, question_ids, choice_ids = {}, {}, {}
         for block_position, block_data in enumerate(data.blocks, start=1):
             block = Block(form_id=form.id, title=block_data.title, position=block_position)
             db.add(block)
             db.flush()
+            block_ids[block_data.key] = block.id
             for question_position, question_data in enumerate(block_data.questions, start=1):
                 question = Question(
                     block_id=block.id, type_id=type_ids[question_data.type], text=question_data.text,
@@ -136,13 +145,19 @@ def save_form(db: Session, form: Form, data: FormSave) -> dict:
                 )
                 db.add(question)
                 db.flush()
+                question_ids[question_data.key] = question.id
                 for choice_position, choice_data in enumerate(question_data.options, start=1):
-                    db.add(QuestionChoice(question_id=question.id, text=choice_data.text,
+                    choice = QuestionChoice(question_id=question.id, text=choice_data.text,
                                           position=choice_position,
-                                          is_correct=bool(choice_data.is_correct) if form.is_test else False))
+                                          is_correct=bool(choice_data.is_correct) if form.is_test else False)
+                    db.add(choice)
+                    db.flush()
+                    choice_ids[choice_data.key] = choice.id
                 if form.is_test:
                     for answer in question_data.correct_text_answers:
                         db.add(CorrectTextAnswer(question_id=question.id, answer_text=answer))
+        if not form.is_test:
+            save_conditions(db, data.blocks, block_ids, question_ids, choice_ids, operator_ids)
         if form.is_test:
             for row in data.grading_scale or []:
                 db.add(GradingScale(form_id=form.id, min_percent=row.min_percent,

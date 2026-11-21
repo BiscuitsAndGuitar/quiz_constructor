@@ -10,6 +10,7 @@ import FormSettings from '../components/FormSettings.vue'
 import GradingScaleEditor from '../components/GradingScaleEditor.vue'
 import NoAccessPage from './NoAccessPage.vue'
 import NotFoundPage from './NotFoundPage.vue'
+import { deletionReferences, referenceErrors } from '../utils/conditions.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -76,11 +77,26 @@ async function loadForm(id) {
 async function deleteBlock(index) {
   if (saving.value || form.value.is_published || form.value.blocks.length === 1) return
   const block = form.value.blocks[index]
+  const places = deletionReferences(form.value.blocks, block.questions.map(question => question.key), null, index)
+  if (places.length) {
+    errorMessage.value = `Нельзя удалить блок: на его вопросы ссылаются ${places.join('; ')}. Сначала удалите ссылки.`
+    return
+  }
   if (block.questions.length && !await deleteDialog.value.ask({ title: 'Удалить блок?',
     message: `Будут удалены блок и вопросы в нём (${block.questions.length}). Продолжить?`,
     confirmText: 'Удалить блок' })) return
   const currentIndex = form.value.blocks.findIndex(item => item.key === block.key)
   form.value.blocks = removeBlock(form.value.blocks, currentIndex)
+}
+
+function applyMove(blocks) {
+  const errors = referenceErrors(blocks)
+  if (errors.length) {
+    errorMessage.value = `Нельзя переместить. ${errors.join('; ')}. Сначала измените условия.`
+    return
+  }
+  errorMessage.value = ''
+  form.value.blocks = blocks
 }
 
 async function save() {
@@ -131,8 +147,9 @@ watch(() => route.params.id, loadForm, { immediate: true })
             <FormSettings :form="form" />
             <BlockEditor v-for="(block, index) in form.blocks" :key="block.key" :blocks="form.blocks" :index="index"
               :numbers="numbers[index]" :is-test="form.is_test" :disabled="saving || form.is_published"
-              @remove="deleteBlock(index)" @move="form.blocks = moveBlock(form.blocks, index, $event)"
-              @move-question="(questionIndex, direction) => form.blocks = moveQuestion(form.blocks, index, questionIndex, direction)" />
+              @error="errorMessage = $event"
+              @remove="deleteBlock(index)" @move="applyMove(moveBlock(form.blocks, index, $event))"
+              @move-question="(questionIndex, direction) => applyMove(moveQuestion(form.blocks, index, questionIndex, direction))" />
             <button type="button" @click="form.blocks = addBlock(form.blocks, newBlock())">Добавить блок</button>
             <GradingScaleEditor v-if="form.is_test" :scale="form.grading_scale" />
             <p v-if="form.is_test" class="total-points">Всего баллов: {{ totalPoints(form) }}</p>
