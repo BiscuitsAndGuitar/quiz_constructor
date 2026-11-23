@@ -1,8 +1,10 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { createForm, deleteForm, listForms } from '../api/forms.js'
+import { createForm, deleteForm, listForms, copyForm } from '../api/forms.js'
 import NoAccessPage from './NoAccessPage.vue'
+import MessageDialog from '../components/MessageDialog.vue'
+import { participantLink, copyParticipantLink } from '../utils/formPublication.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -21,6 +23,36 @@ const createError = ref('')
 const deleting = ref(false)
 const deleteError = ref('')
 const selectedForm = ref(null)
+const copying = ref(false)
+const notice = ref('')
+const messageDialog = ref(null)
+let noticeTimer
+onBeforeUnmount(() => clearTimeout(noticeTimer))
+
+function showNotice(message) {
+  notice.value = message
+  clearTimeout(noticeTimer)
+  noticeTimer = setTimeout(() => { notice.value = '' }, 4000)
+}
+
+async function createCopy(form) {
+  if (copying.value) return
+  copying.value = true
+  try {
+    const copied = await copyForm(form.id)
+    await loadForms()
+    showNotice(`Копия создана: ${copied.title}`)
+  } catch (error) {
+    messageDialog.value.show(error.detail ?? error.message)
+    returnToLogin(error)
+  } finally { copying.value = false }
+}
+
+async function copyLink(form) {
+  const link = participantLink(window.location.origin, form.public_code)
+  if (await copyParticipantLink(link, navigator.clipboard)) showNotice('Скопировано')
+  else messageDialog.value.show(['Скопируйте ссылку вручную:', link])
+}
 
 const visibleForms = computed(() => forms.value.filter(form =>
   (typeFilter.value === 'all' || form.is_test === (typeFilter.value === 'test')) &&
@@ -117,6 +149,7 @@ onMounted(loadForms)
   <NoAccessPage v-if="forbidden" />
   <section v-else>
     <h1>Мои опросы и тесты</h1>
+    <p v-if="notice" role="status">{{ notice }}</p>
     <div class="actions">
       <button @click="openCreate(false)">Создать опрос</button>
       <button @click="openCreate(true)">Создать тест</button>
@@ -136,7 +169,12 @@ onMounted(loadForms)
             <td>{{ form.title }}</td><td>{{ form.is_test ? 'Тест' : 'Опрос' }}</td>
             <td>{{ form.is_published ? 'Опубликован' : 'Черновик' }}</td><td>{{ form.requires_login ? 'Авторизованным' : 'Всем' }}</td>
             <td>{{ form.attempts_count }}</td><td>{{ formatDate(form.created_at) }}</td>
-            <td><div class="actions"><RouterLink v-if="!form.is_published" :to="`/forms/${form.id}/edit`">Редактировать</RouterLink><button @click="openDelete(form)">Удалить</button></div></td>
+            <td><div class="actions">
+              <RouterLink :to="`/forms/${form.id}/edit`">{{ form.is_published ? 'Открыть' : 'Редактировать' }}</RouterLink>
+              <button :disabled="copying" @click="createCopy(form)">Копия</button>
+              <button v-if="form.is_published" @click="copyLink(form)">Скопировать ссылку</button>
+              <button @click="openDelete(form)">Удалить</button>
+            </div></td>
           </tr>
         </tbody>
       </table>
@@ -156,4 +194,5 @@ onMounted(loadForms)
       <div class="actions"><button :disabled="deleting" @click="confirmDelete">{{ deleting ? 'Удаляем…' : 'Удалить' }}</button><button autofocus :disabled="deleting" @click="closeDelete">Отмена</button></div>
     </dialog>
   </section>
+  <MessageDialog ref="messageDialog" />
 </template>

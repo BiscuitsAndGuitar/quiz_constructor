@@ -1,5 +1,6 @@
 import secrets
 import string
+from datetime import datetime, timezone
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
@@ -11,10 +12,38 @@ from app.services.form_validation import InvalidFormError, validate_form
 from app.models import ConditionOperator
 from app.services.conditions import validate_conditions
 from app.services.condition_storage import add_conditions_to_response, save_conditions
+from app.services.form_validation import publication_problems
 
 
 class PublishedFormError(Exception):
     pass
+
+
+class PublicationError(Exception):
+    def __init__(self, problems):
+        self.problems = problems
+        super().__init__("Форма не прошла проверку")
+
+
+def publish_form(db: Session, form: Form) -> dict:
+    try:
+        # Сохранение и публикация используют одну блокировку строки формы.
+        db.refresh(form, with_for_update=True)
+        if form.is_published:
+            raise PublishedFormError("Форма уже опубликована")
+        problems = publication_problems(build_form_response(db, form))
+        if problems:
+            raise PublicationError(problems)
+        form.is_published = True
+        form.published_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        db.flush()
+        result = {"id": form.id, "is_published": True, "published_at": form.published_at,
+                  "public_code": form.public_code}
+        db.commit()
+        return result
+    except Exception:
+        db.rollback()
+        raise
 
 
 def list_forms(db: Session, author_id: int) -> list[dict]:

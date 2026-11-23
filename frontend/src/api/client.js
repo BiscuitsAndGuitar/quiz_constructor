@@ -17,6 +17,7 @@ export async function request(path, { method = 'GET', body, token } = {}) {
     const error = new Error(typeof data?.detail === 'string' ? data.detail : 'Не удалось выполнить запрос')
     error.status = response.status
     error.detail = data?.detail
+    error.problems = data?.problems
     throw error
   }
   return data

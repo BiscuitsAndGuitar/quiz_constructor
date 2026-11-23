@@ -16,3 +16,5 @@ export const createForm = (data) => formsRequest('/forms', { method: 'POST', bod
 export const getForm = (id) => formsRequest(`/forms/${encodeURIComponent(id)}`)
 export const saveForm = (id, data) => formsRequest(`/forms/${encodeURIComponent(id)}`, { method: 'PUT', body: data })
 export const deleteForm = (id) => formsRequest(`/forms/${encodeURIComponent(id)}`, { method: 'DELETE' })
+export const publishForm = (id) => formsRequest(`/forms/${encodeURIComponent(id)}/publish`, { method: 'POST' })
+export const copyForm = (id) => formsRequest(`/forms/${encodeURIComponent(id)}/copy`, { method: 'POST' })

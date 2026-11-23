@@ -5,6 +5,29 @@ class InvalidFormError(Exception):
     pass
 
 
+def publication_problems(form: dict) -> list[str]:
+    problems = []
+    questions = [question for block in form["blocks"] for question in block["questions"]]
+    if not questions:
+        problems.append("В форме должен быть хотя бы один вопрос")
+    for number, question in enumerate(questions, 1):
+        kind = question["type"]
+        if kind == "info":
+            continue
+        choices = question.get("options", [])
+        if kind in {"single", "multiple"} and len(choices) < 2:
+            problems.append(f"В вопросе {number} меньше двух вариантов")
+        if form["is_test"]:
+            correct = (bool(question.get("correct_text_answers")) if kind == "text"
+                       else any(choice.get("is_correct") for choice in choices))
+            if not correct:
+                problems.append(f"В вопросе {number} нет правильного ответа")
+            points = question.get("points")
+            if type(points) is not int or points <= 0:
+                problems.append(f"В вопросе {number} не заданы баллы — целое число больше 0")
+    return problems
+
+
 def normalize_text_answers(answers: list[str], number: int) -> list[str]:
     result = []
     seen = set()

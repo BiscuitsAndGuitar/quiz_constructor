@@ -6,8 +6,26 @@ from app.dependencies import get_owned_form, require_author
 from app.models import Form, User
 from app.schemas.forms import FormCreate, FormCreated, FormListItem, FormResponse, FormSave
 from app.services import forms as forms_service
+from app.schemas.forms import FormCopied, FormPublished
+from app.services.form_copy import copy_form
+from fastapi.responses import JSONResponse
 
 router = APIRouter(tags=["Опросы и тесты"])
+
+
+@router.post("/forms/{id}/publish", response_model=FormPublished)
+def publish_form(form: Form = Depends(get_owned_form), db: Session = Depends(get_db)):
+    try:
+        return forms_service.publish_form(db, form)
+    except forms_service.PublishedFormError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from None
+    except forms_service.PublicationError as error:
+        return JSONResponse(status_code=422, content={"detail": str(error), "problems": error.problems})
+
+
+@router.post("/forms/{id}/copy", status_code=201, response_model=FormCopied)
+def create_copy(form: Form = Depends(get_owned_form), db: Session = Depends(get_db)):
+    return copy_form(db, form)
 
 
 @router.get("/my/forms", response_model=list[FormListItem])

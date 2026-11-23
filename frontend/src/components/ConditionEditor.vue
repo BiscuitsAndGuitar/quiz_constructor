@@ -1,7 +1,7 @@
 <script setup>
 import { operatorNames, operatorsFor } from '../utils/conditions.js'
 
-const props = defineProps({ modelValue: { type: Object, default: null }, questions: { type: Array, required: true }, required: Boolean })
+const props = defineProps({ modelValue: { type: Object, default: null }, questions: { type: Array, required: true }, required: Boolean, readOnly: Boolean })
 const emit = defineEmits(['update:modelValue'])
 
 function newItem() {
@@ -27,7 +27,7 @@ function changeOperator(item) {
 </script>
 
 <template>
-  <div class="condition-editor">
+  <fieldset class="condition-editor" :disabled="readOnly">
     <p v-if="!questions.length" class="hint">Нет подходящих вопросов выше</p>
     <template v-else>
       <template v-if="modelValue">
@@ -51,11 +51,11 @@ function changeOperator(item) {
             <select v-model="item.option"><option disabled value="">Выберите вариант</option><option v-for="(option, optionIndex) in source(item)?.options || []" :key="option.key" :value="option.key">{{ option.text || `Вариант ${optionIndex + 1}` }}</option></select>
           </label>
           <label v-if="['equals', 'contains'].includes(item.operator)">Текст ответа<input v-model="item.text_answer"></label>
-          <button type="button" @click="modelValue.items.splice(index, 1)">Удалить условие</button>
+          <button v-if="!readOnly" type="button" @click="modelValue.items.splice(index, 1)">Удалить условие</button>
         </div>
       </template>
-      <button type="button" @click="add">Добавить условие</button>
-      <button v-if="modelValue && !required" type="button" @click="emit('update:modelValue', null)">Удалить все</button>
+      <button v-if="!readOnly" type="button" @click="add">Добавить условие</button>
+      <button v-if="!readOnly && modelValue && !required" type="button" @click="emit('update:modelValue', null)">Удалить все</button>
     </template>
-  </div>
+  </fieldset>
 </template>

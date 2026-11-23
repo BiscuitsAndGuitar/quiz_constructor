@@ -159,3 +159,17 @@ class FormListItem(BaseModel):
     attempts_count: int
     created_at: datetime
     published_at: datetime | None
+
+
+class FormPublished(BaseModel):
+    id: int
+    is_published: bool
+    published_at: datetime
+    public_code: str
+
+
+class FormCopied(BaseModel):
+    id: int
+    title: str
+    is_published: bool
+    public_code: str

@@ -39,7 +39,7 @@ export function totalPoints(form) {
 
 export function prepareFormForEditor(form) {
   const result = structuredClone(form)
-  if (result.is_test) {
+  if (result.is_test && !result.is_published) {
     if (!result.grading_scale?.length) result.grading_scale = defaultGradingScale()
     for (const block of result.blocks) {
       for (const question of block.questions) question.points ??= 1

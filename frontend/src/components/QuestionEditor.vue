@@ -6,7 +6,7 @@ import FinishRulesEditor from './FinishRulesEditor.vue'
 import { questionSummary, questionTypeNames } from '../utils/editorDisplay.js'
 
 const props = defineProps({ question: { type: Object, required: true }, number: Number, isTest: Boolean, disabled: Boolean, canMoveUp: Boolean, canMoveDown: Boolean,
-  blocks: { type: Array, required: true }, blockIndex: Number, questionIndex: Number, collapsed: Boolean })
+  blocks: { type: Array, required: true }, blockIndex: Number, questionIndex: Number, collapsed: Boolean, readOnly: Boolean })
 const emit = defineEmits(['remove', 'change', 'move', 'error', 'toggle'])
 
 function changeType(event) {
@@ -41,11 +41,11 @@ function chooseCorrect(selected) {
       <span v-if="collapsed" class="card-summary" :title="question.text">{{ questionSummary(question) }} · {{ questionTypeNames[question.type] }}</span>
       <span v-if="question.condition" class="hint">есть условие</span>
       <span v-if="!isTest && question.finish_rules?.length" class="hint">правила завершения: {{ question.finish_rules.length }}</span>
-      <button type="button" title="Вверх" :aria-label="`Вопрос ${number}: вверх`" :disabled="disabled || !canMoveUp" @click="$emit('move', -1)">↑</button>
-      <button type="button" title="Вниз" :aria-label="`Вопрос ${number}: вниз`" :disabled="disabled || !canMoveDown" @click="$emit('move', 1)">↓</button>
-      <button type="button" class="remove-question" @click="$emit('remove')">Удалить вопрос</button>
+      <button v-if="!readOnly" type="button" title="Вверх" :aria-label="`Вопрос ${number}: вверх`" :disabled="disabled || !canMoveUp" @click="$emit('move', -1)">↑</button>
+      <button v-if="!readOnly" type="button" title="Вниз" :aria-label="`Вопрос ${number}: вниз`" :disabled="disabled || !canMoveDown" @click="$emit('move', 1)">↓</button>
+      <button v-if="!readOnly" type="button" class="remove-question" @click="$emit('remove')">Удалить вопрос</button>
     </div>
-    <div v-show="!collapsed">
+    <fieldset v-show="!collapsed" :disabled="readOnly" class="editor-fields">
     <div class="field"><label :for="`${question.key}-text`">Текст вопроса</label><textarea :id="`${question.key}-text`" v-model="question.text" rows="3"></textarea></div>
     <div class="field">
       <label :for="`${question.key}-type`">Тип вопроса</label>
@@ -70,9 +70,9 @@ function chooseCorrect(selected) {
           <input v-if="question.type === 'single'" type="radio" :name="`${question.key}-correct`" :checked="option.is_correct" @change="chooseCorrect(option)">
           <input v-else v-model="option.is_correct" type="checkbox"> Верный
         </label>
-        <button type="button" :aria-label="`Удалить вариант ${index + 1}`" @click="removeOption(index)">Удалить</button>
+        <button v-if="!readOnly" type="button" :aria-label="`Удалить вариант ${index + 1}`" @click="removeOption(index)">Удалить</button>
       </div>
-      <button type="button" @click="question.options.push(newOption(isTest)); $emit('change')">Добавить вариант</button>
+      <button v-if="!readOnly" type="button" @click="question.options.push(newOption(isTest)); $emit('change')">Добавить вариант</button>
       <p v-if="isTest" class="hint">Если нужен вариант «все перечисленные», формулируйте его как «Все варианты верны»: при перемешивании порядок вариантов меняется</p>
     </div>
     <div v-if="isTest && question.type === 'text'">
@@ -80,15 +80,15 @@ function chooseCorrect(selected) {
       <div v-for="(answer, index) in question.correct_text_answers" :key="index" class="option-row">
         <label :for="`${question.key}-answer-${index}`">Ответ {{ index + 1 }}</label>
         <input :id="`${question.key}-answer-${index}`" v-model="question.correct_text_answers[index]">
-        <button type="button" :aria-label="`Удалить ответ ${index + 1}`" @click="question.correct_text_answers.splice(index, 1); $emit('change')">Удалить</button>
+        <button v-if="!readOnly" type="button" :aria-label="`Удалить ответ ${index + 1}`" @click="question.correct_text_answers.splice(index, 1); $emit('change')">Удалить</button>
       </div>
-      <button type="button" @click="question.correct_text_answers.push(''); $emit('change')">Добавить ответ</button>
+      <button v-if="!readOnly" type="button" @click="question.correct_text_answers.push(''); $emit('change')">Добавить ответ</button>
     </div>
     <template v-if="!isTest">
       <h3>Условие показа вопроса</h3>
-      <ConditionEditor v-model="question.condition" :questions="availableQuestions(blocks, blockIndex, questionIndex)" />
-      <FinishRulesEditor v-if="question.type !== 'info'" :question="question" :questions="availableQuestions(blocks, blockIndex, questionIndex, true)" />
+      <ConditionEditor :read-only="readOnly" v-model="question.condition" :questions="availableQuestions(blocks, blockIndex, questionIndex)" />
+      <FinishRulesEditor :read-only="readOnly" v-if="question.type !== 'info'" :question="question" :questions="availableQuestions(blocks, blockIndex, questionIndex, true)" />
     </template>
-    </div>
+    </fieldset>
   </fieldset>
 </template>

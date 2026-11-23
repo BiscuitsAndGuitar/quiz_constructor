@@ -1,6 +1,6 @@
 <script setup>
 import { settingsSummary } from '../utils/editorDisplay.js'
-defineProps({ form: { type: Object, required: true }, collapsed: Boolean })
+defineProps({ form: { type: Object, required: true }, collapsed: Boolean, readOnly: Boolean })
 defineEmits(['change', 'toggle'])
 
 function changeAccess(form) {
@@ -16,7 +16,7 @@ function toggleTime(form, checked) {
   <fieldset class="form-settings" @input="$emit('change')" @change="$emit('change')">
     <legend><h2><button type="button" :title="collapsed ? 'Развернуть настройки формы' : 'Свернуть настройки формы'" :aria-expanded="!collapsed" @click="$emit('toggle')">{{ collapsed ? '▸' : '▾' }}</button> Настройки формы</h2></legend>
     <p v-if="collapsed">{{ settingsSummary(form) }}</p>
-    <div v-show="!collapsed">
+    <fieldset v-show="!collapsed" :disabled="readOnly" class="editor-fields">
     <div class="field"><label for="form-description">Описание</label><textarea id="form-description" v-model="form.description" rows="3"></textarea></div>
     <div class="field">
       <label for="form-access">Доступ</label>
@@ -46,6 +46,6 @@ function toggleTime(form, checked) {
       <p id="completion-count" class="hint">{{ [...(form.completion_message || '')].length }} / 1000</p>
       <p id="completion-hint" class="hint">Простой текст, без форматирования</p>
     </div>
-    </div>
+    </fieldset>
   </fieldset>
 </template>
