@@ -3,6 +3,55 @@ import assert from 'node:assert/strict'
 import { collapseAll, expandForErrors, messageLines, questionSummary, remapCollapsed, toggleCollapsed } from './editorDisplay.js'
 import { formSavePayload, formSnapshot, moveQuestion } from './formEditor.js'
 import { collapseAllSections, settingsSection, gradingSection, settingsSummary } from './editorDisplay.js'
+import { conditionSection, rulesSection, conditionSummary, rulesSummary } from './editorDisplay.js'
+
+test('Вложенные разделы сворачиваются независимо от родителей и не меняют данные формы', () => {
+  const form = { blocks: blocks(), is_test: false }
+  const snapshot = formSnapshot(form)
+  let state = toggleCollapsed(new Set(), conditionSection('q1'))
+  state = toggleCollapsed(state, rulesSection('q1'))
+  state = toggleCollapsed(state, 'q1')
+  state = toggleCollapsed(state, 'b1')
+  state = toggleCollapsed(state, 'q1')
+  state = toggleCollapsed(state, 'b1')
+  assert.deepEqual(state, new Set([conditionSection('q1'), rulesSection('q1')]))
+  assert.equal(formSnapshot(form), snapshot)
+  assert.equal(state.has(conditionSection('new-question')), false)
+})
+
+test('Свернуть всё включает условия блоков, вопросов и правила, в том числе при просмотре', () => {
+  for (const is_published of [false, true]) {
+    const form = { blocks: blocks(), is_test: false, is_published }
+    const state = collapseAllSections(form)
+    for (const block of form.blocks) {
+      assert.ok(state.has(conditionSection(block.key)))
+      for (const question of block.questions) {
+        assert.ok(state.has(conditionSection(question.key)) && state.has(rulesSection(question.key)))
+      }
+    }
+    assert.equal(toggleCollapsed(state, rulesSection('q1')).has(rulesSection('q1')), false)
+  }
+  assert.equal(collapseAllSections({ blocks: blocks(), is_test: true }).has(conditionSection('q1')), false)
+})
+
+test('Вложенные разделы сохраняют состояние после смены ключей и раскрываются при ошибке', () => {
+  const state = new Set(['b1', 'q1', conditionSection('b1'), conditionSection('q1'), rulesSection('q1')])
+  const next = remapCollapsed(state, blocks(), [{ key: 'b9', questions: [{ key: 'q9' }] }])
+  assert.deepEqual(next, new Set(['b9', 'q9', conditionSection('b9'), conditionSection('q9'), rulesSection('q9')]))
+  for (const detail of ['Укажите условие в формате {match_all, items}', 'Правила завершения должны быть списком', 'Правило 1 вопроса 2: ошибка']) {
+    assert.equal(expandForErrors(state, detail).size, 0)
+  }
+  assert.equal(new Set().has(rulesSection('q1')), false)
+})
+
+test('Сводки пустых и заполненных условий и правил', () => {
+  assert.equal(conditionSummary(null), 'Нет условий')
+  assert.equal(conditionSummary({ items: [] }), 'Нет условий')
+  assert.equal(conditionSummary({ items: [{}, {}] }), 'Условий: 2')
+  assert.equal(rulesSummary(undefined), 'Нет правил')
+  assert.equal(rulesSummary([]), 'Нет правил')
+  assert.equal(rulesSummary([{}]), 'Правил: 1')
+})
 
 test('Свернуть всё охватывает разделы, блоки и вопросы; шкала есть только у теста', () => {
   const form = { blocks: blocks(), is_test: true }

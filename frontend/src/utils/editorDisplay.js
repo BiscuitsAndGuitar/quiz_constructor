@@ -20,7 +20,7 @@ export function expandForErrors(collapsed, detail) {
   // Сервер иногда нумерует вопросы внутри блока, иногда по всей форме.
   // Не угадываем место: при упоминании блока/вопроса раскрываем все карточки.
   const lines = messageLines(detail)
-  const next = lines.some(line => /(?:вопрос|блок)\S*\s+\d+/iu.test(line)) ? new Set() : new Set(collapsed)
+  const next = lines.some(line => /(?:вопрос|блок)\S*\s+\d+|услови|правил|condition|finish_rules/iu.test(line)) ? new Set() : new Set(collapsed)
   for (const line of lines) {
     if (/шкал|оценк|границ|min_percent|grading_scale|grade/iu.test(line)) next.delete(gradingSection)
     if (/настрой|доступ|попыт|врем|минут|завершени|описани|requires_login|max_attempts|time_limit|completion_message|description|take_by_blocks|navigation|shuffle|show_/iu.test(line)) next.delete(settingsSection)
@@ -40,8 +40,13 @@ export function remapCollapsed(collapsed, before, after) {
     const saved = after[index]
     if (!saved) return
     if (collapsed.has(block.key)) next.add(saved.key)
+    if (collapsed.has(conditionSection(block.key))) next.add(conditionSection(saved.key))
     block.questions.forEach((question, questionIndex) => {
       if (collapsed.has(question.key) && saved.questions[questionIndex]) next.add(saved.questions[questionIndex].key)
+      if (!saved.questions[questionIndex]) return
+      for (const section of [conditionSection, rulesSection]) {
+        if (collapsed.has(section(question.key))) next.add(section(saved.questions[questionIndex].key))
+      }
     })
   })
   return next
@@ -61,6 +66,13 @@ export function collapseAllSections(form) {
   const next = collapseAll(form.blocks)
   next.add(settingsSection)
   if (form.is_test) next.add(gradingSection)
+  else for (const block of form.blocks) {
+    next.add(conditionSection(block.key))
+    for (const question of block.questions) {
+      next.add(conditionSection(question.key))
+      if (question.type !== 'info') next.add(rulesSection(question.key))
+    }
+  }
   return next
 }
 
@@ -71,5 +83,17 @@ export function settingsSummary(form) {
     parts.push(`Ограничение времени: ${form.time_limit_minutes} мин`)
   }
   return parts.join(' · ')
+}
+
+export const conditionSection = key => Symbol.for(`condition:${key}`)
+export const rulesSection = key => Symbol.for(`rules:${key}`)
+
+export function conditionSummary(condition) {
+  const count = condition?.items?.length || 0
+  return count ? `Условий: ${count}` : 'Нет условий'
+}
+
+export function rulesSummary(rules) {
+  return rules?.length ? `Правил: ${rules.length}` : 'Нет правил'
 }
 

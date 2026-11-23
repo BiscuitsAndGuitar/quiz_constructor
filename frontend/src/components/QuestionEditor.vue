@@ -3,11 +3,12 @@ import { changeQuestionType, newOption } from '../utils/formEditor.js'
 import { availableQuestions, deletionReferences, typeChangeErrors } from '../utils/conditions.js'
 import ConditionEditor from './ConditionEditor.vue'
 import FinishRulesEditor from './FinishRulesEditor.vue'
-import { questionSummary, questionTypeNames } from '../utils/editorDisplay.js'
+import { questionSummary, questionTypeNames, conditionSummary } from '../utils/editorDisplay.js'
 
 const props = defineProps({ question: { type: Object, required: true }, number: Number, isTest: Boolean, disabled: Boolean, canMoveUp: Boolean, canMoveDown: Boolean,
-  blocks: { type: Array, required: true }, blockIndex: Number, questionIndex: Number, collapsed: Boolean, readOnly: Boolean })
-const emit = defineEmits(['remove', 'change', 'move', 'error', 'toggle'])
+  blocks: { type: Array, required: true }, blockIndex: Number, questionIndex: Number, collapsed: Boolean, readOnly: Boolean,
+  conditionCollapsed: Boolean, rulesCollapsed: Boolean })
+const emit = defineEmits(['remove', 'change', 'move', 'error', 'toggle', 'toggle-condition', 'toggle-rules'])
 
 function changeType(event) {
   const errors = typeChangeErrors(props.blocks, props.question.key, event.target.value)
@@ -84,11 +85,12 @@ function chooseCorrect(selected) {
       </div>
       <button v-if="!readOnly" type="button" @click="question.correct_text_answers.push(''); $emit('change')">Добавить ответ</button>
     </div>
-    <template v-if="!isTest">
-      <h3>Условие показа вопроса</h3>
-      <ConditionEditor :read-only="readOnly" v-model="question.condition" :questions="availableQuestions(blocks, blockIndex, questionIndex)" />
-      <FinishRulesEditor :read-only="readOnly" v-if="question.type !== 'info'" :question="question" :questions="availableQuestions(blocks, blockIndex, questionIndex, true)" />
-    </template>
     </fieldset>
+    <div v-if="!isTest" v-show="!collapsed">
+      <h3><button type="button" :title="conditionCollapsed ? 'Развернуть условие показа вопроса' : 'Свернуть условие показа вопроса'" :aria-expanded="!conditionCollapsed" @click="$emit('toggle-condition')">{{ conditionCollapsed ? '▸' : '▾' }}</button> Условие показа вопроса</h3>
+      <p v-if="conditionCollapsed">{{ conditionSummary(question.condition) }}</p>
+      <ConditionEditor v-show="!conditionCollapsed" :read-only="readOnly" v-model="question.condition" :questions="availableQuestions(blocks, blockIndex, questionIndex)" />
+      <FinishRulesEditor :collapsed="rulesCollapsed" @toggle="$emit('toggle-rules')" :read-only="readOnly" v-if="question.type !== 'info'" :question="question" :questions="availableQuestions(blocks, blockIndex, questionIndex, true)" />
+    </div>
   </fieldset>
 </template>

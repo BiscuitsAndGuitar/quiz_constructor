@@ -3,6 +3,7 @@ import QuestionEditor from './QuestionEditor.vue'
 import ConditionEditor from './ConditionEditor.vue'
 import { availableQuestions, deletionReferences } from '../utils/conditions.js'
 import { canMoveQuestion, newQuestion } from '../utils/formEditor.js'
+import { conditionSection, rulesSection, conditionSummary } from '../utils/editorDisplay.js'
 
 const props = defineProps({
   blocks: { type: Array, required: true }, index: { type: Number, required: true },
@@ -45,13 +46,18 @@ function addQuestion() {
       <input :id="`${blocks[index].key}-title`" v-model="blocks[index].title" :disabled="readOnly">
       <p class="hint">Необязательно, до 255 символов</p>
     </div>
-    <section v-if="!isTest"><h3>Условие показа блока</h3>
-      <ConditionEditor :read-only="readOnly" v-model="blocks[index].condition" :questions="availableQuestions(blocks, index)" />
+    <section v-if="!isTest"><h3>
+      <button type="button" :title="collapsed.has(conditionSection(blocks[index].key)) ? 'Развернуть условие показа блока' : 'Свернуть условие показа блока'" :aria-expanded="!collapsed.has(conditionSection(blocks[index].key))" @click="$emit('toggle', conditionSection(blocks[index].key))">{{ collapsed.has(conditionSection(blocks[index].key)) ? '▸' : '▾' }}</button>
+      Условие показа блока</h3>
+      <p v-if="collapsed.has(conditionSection(blocks[index].key))">{{ conditionSummary(blocks[index].condition) }}</p>
+      <ConditionEditor v-show="!collapsed.has(conditionSection(blocks[index].key))" :read-only="readOnly" v-model="blocks[index].condition" :questions="availableQuestions(blocks, index)" />
     </section>
     <QuestionEditor v-for="(question, questionIndex) in blocks[index].questions" :key="question.key"
       :blocks="blocks" :block-index="index" :question-index="questionIndex"
       :read-only="readOnly" :question="question" :number="numbers[questionIndex]" :is-test="isTest" :disabled="disabled"
       :collapsed="collapsed.has(question.key)" @toggle="$emit('toggle', question.key)"
+      :condition-collapsed="collapsed.has(conditionSection(question.key))" :rules-collapsed="collapsed.has(rulesSection(question.key))"
+      @toggle-condition="$emit('toggle', conditionSection(question.key))" @toggle-rules="$emit('toggle', rulesSection(question.key))"
       :can-move-up="canMoveQuestion(blocks, index, questionIndex, -1)"
       :can-move-down="canMoveQuestion(blocks, index, questionIndex, 1)"
       @move="$emit('move-question', questionIndex, $event)" @remove="removeQuestion(questionIndex)" @error="$emit('error', $event)" />

@@ -1,7 +1,9 @@
 <script setup>
 import ConditionEditor from './ConditionEditor.vue'
+import { rulesSummary } from '../utils/editorDisplay.js'
 
-const props = defineProps({ question: { type: Object, required: true }, questions: { type: Array, required: true }, readOnly: Boolean })
+const props = defineProps({ question: { type: Object, required: true }, questions: { type: Array, required: true }, readOnly: Boolean, collapsed: Boolean })
+defineEmits(['toggle'])
 function addRule() {
   props.question.finish_rules ??= []
   props.question.finish_rules.push({ key: crypto.randomUUID(), message: null,
@@ -17,7 +19,9 @@ function move(index, direction) {
 
 <template>
   <section class="finish-rules">
-    <h3>Завершить опрос, если…</h3>
+    <h3><button type="button" :title="collapsed ? 'Развернуть правила завершения' : 'Свернуть правила завершения'" :aria-expanded="!collapsed" @click="$emit('toggle')">{{ collapsed ? '▸' : '▾' }}</button> Завершить опрос, если…</h3>
+    <p v-if="collapsed">{{ rulesSummary(question.finish_rules) }}</p>
+    <div v-show="!collapsed">
     <p class="hint">Опрос закончится после этого вопроса, остальные вопросы участник не увидит. Срабатывает первое подходящее правило.</p>
     <fieldset :disabled="readOnly" v-for="(rule, index) in question.finish_rules || []" :key="rule.key">
       <legend>Правило {{ index + 1 }}</legend>
@@ -30,5 +34,6 @@ function move(index, direction) {
       <p class="hint">{{ (rule.message || '').length }} / 1000. Простой текст, без форматирования</p>
     </fieldset>
     <button v-if="!readOnly" type="button" @click="addRule">Добавить правило завершения</button>
+    </div>
   </section>
 </template>
