@@ -8,10 +8,20 @@ from fastapi.responses import JSONResponse
 
 from app.routers.auth import router as auth_router
 from app.routers.forms import router as forms_router
+from app.routers.public import router as public_router
+from app.routers.attempts import router as attempts_router
+from app.services.attempt_errors import AttemptError
 
 app = FastAPI(title="Конструктор опросов и тестов")
 app.include_router(auth_router)
 app.include_router(forms_router)
+app.include_router(public_router)
+app.include_router(attempts_router)
+
+
+@app.exception_handler(AttemptError)
+async def attempt_error_handler(request, error):
+    return JSONResponse(status_code=error.status, content=error.body)
 
 
 @app.exception_handler(RequestValidationError)
@@ -56,6 +66,8 @@ async def validation_error_handler(request, error: RequestValidationError):
             "text_answer": "Значение текстового условия должно быть строкой",
             "finish_rules": "Правила завершения должны быть списком",
         }.get(field, "Неверные данные запроса")
+    if "answers" in location:
+        detail = "Ответы должны содержать целый question_id, список целых option_ids или строку text"
     if "questions" in location and field in {"points", "allow_partial_scoring", "is_correct", "correct_text_answers"}:
         index = location.index("questions")
         if len(location) > index + 1 and isinstance(location[index + 1], int):
