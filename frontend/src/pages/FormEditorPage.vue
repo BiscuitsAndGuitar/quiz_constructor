@@ -13,6 +13,7 @@ import NoAccessPage from './NoAccessPage.vue'
 import NotFoundPage from './NotFoundPage.vue'
 import { deletionReferences, referenceErrors } from '../utils/conditions.js'
 import MessageDialog from '../components/MessageDialog.vue'
+import FormPreview from '../components/FormPreview.vue'
 import { collapseAllSections, settingsSection, gradingSection, expandForErrors, remapCollapsed, toggleCollapsed } from '../utils/editorDisplay.js'
 
 const route = useRoute()
@@ -31,6 +32,7 @@ const publishDialog = ref(null)
 const publishing = ref(false)
 const copying = ref(false)
 const copiedLink = ref(false)
+const previewOpen = ref(false)
 let copyNoticeTimer
 const readOnly = computed(() => isReadOnly(form.value))
 const busy = computed(() => saving.value || publishing.value || copying.value)
@@ -222,6 +224,7 @@ watch(() => route.params.id, loadForm, { immediate: true })
             <div class="field"><label for="form-title">Название</label><input id="form-title" v-model="form.title" :disabled="busy || readOnly"></div>
             <button v-if="!readOnly" :disabled="busy">{{ saving ? 'Сохраняем…' : 'Сохранить' }}</button>
             <button v-if="!readOnly" type="button" :disabled="busy" @click="publish">{{ publishing ? 'Публикуем…' : 'Опубликовать' }}</button>
+            <button type="button" :disabled="busy" @click="previewOpen = true">Предпросмотр</button>
             <span v-if="dirty" role="status">Есть несохранённые изменения</span>
             <span v-else-if="saved && !readOnly" role="status">Сохранено</span>
             <RouterLink to="/my/forms">К списку</RouterLink>
@@ -250,4 +253,5 @@ watch(() => route.params.id, loadForm, { immediate: true })
   <ConfirmDialog ref="deleteDialog" />
   <MessageDialog ref="messageDialog" />
   <ConfirmDialog ref="publishDialog" />
+  <FormPreview v-if="previewOpen && form" :form="form" @close="previewOpen = false" />
 </template>

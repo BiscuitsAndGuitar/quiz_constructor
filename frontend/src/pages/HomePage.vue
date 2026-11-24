@@ -1,22 +1,15 @@
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-
-const code = ref('')
-const router = useRouter()
-function openForm() {
-  if (code.value.trim()) router.push(`/f/${encodeURIComponent(code.value.trim())}`)
-}
+import FormCodeInput from '../components/FormCodeInput.vue'
+import { useAuthStore } from '../stores/auth.js'
+const auth = useAuthStore()
 </script>
 
 <template>
   <section>
     <h1>Конструктор опросов и тестов</h1>
     <p>Создавайте опросы и тесты или проходите их по приглашению.</p>
-    <p class="actions"><RouterLink to="/login">Войти</RouterLink><RouterLink to="/register">Зарегистрироваться</RouterLink></p>
-    <form class="code-form" @submit.prevent="openForm">
-      <label for="code">Введите код опроса или теста</label>
-      <div class="actions"><input id="code" v-model="code" required><button>Перейти</button></div>
-    </form>
+    <p v-if="!auth.user" class="actions"><RouterLink to="/login">Войти</RouterLink><RouterLink to="/register">Зарегистрироваться</RouterLink></p>
+    <p v-else><RouterLink :to="auth.homePath">{{ auth.user.is_author ? 'Мои опросы и тесты' : 'Мои прохождения' }}</RouterLink></p>
+    <FormCodeInput label="Введите код опроса или теста" />
   </section>
 </template>

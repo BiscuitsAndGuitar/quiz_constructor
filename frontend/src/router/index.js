@@ -34,7 +34,8 @@ router.beforeEach(async (to) => {
   if (!auth.user && (to.meta.requiresAuth || to.path.startsWith('/my/'))) {
     return { path: '/login', query: { redirect: to.fullPath } }
   }
-  if (auth.user && (to.meta.guestOnly || to.path === '/')) return auth.homePath
+  if (auth.user && to.meta.guestOnly) return auth.homePath
+  if (auth.user?.is_author && to.path === '/my/attempts') return auth.homePath
   // Оставляем исходный адрес, но App вместо закрытой страницы показывает «Нет доступа».
   to.meta.accessDenied = !!auth.user && to.meta.isAuthor !== undefined &&
     auth.user.is_author !== to.meta.isAuthor

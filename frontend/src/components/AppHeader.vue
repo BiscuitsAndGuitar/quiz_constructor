@@ -1,11 +1,13 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
+import FormCodeInput from './FormCodeInput.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
 async function logout() {
   if (auth.logoutRequested) return
+  if (router.currentRoute.value.path === '/') { auth.logout(); return }
   // Удаляем токен только после разрешения редактора покинуть страницу.
   auth.logoutRequested = true
   try {
@@ -31,7 +33,7 @@ async function logout() {
         </template>
         <template v-else>
           <RouterLink to="/my/attempts">Мои прохождения</RouterLink>
-          <button disabled title="Раздел появится позже">Ввести код</button>
+          <details class="header-code"><summary>Ввести код</summary><FormCodeInput /></details>
         </template>
         <span>{{ auth.user.name }}</span>
         <button @click="logout">Выйти</button>

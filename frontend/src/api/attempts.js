@@ -12,3 +12,4 @@ export const finishAttempt = (id, answers, token) => request(`/attempts/${id}/fi
   method: 'POST', body: { answers }, token, headers: keyHeaders(id),
 })
 export const getAttemptResult = (id, token) => request(`/attempts/${id}/result`, { token, headers: keyHeaders(id) })
+export const getMyAttempts = token => request('/my/attempts', { token })
