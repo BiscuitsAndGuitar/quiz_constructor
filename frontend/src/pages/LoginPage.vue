@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
+import { safeRedirect } from '../utils/attempt.js'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -17,11 +18,7 @@ async function submit() {
   submitting.value = true
   try {
     await auth.login({ email: email.value.trim().toLowerCase(), password: password.value })
-    const redirect = route.query.redirect
-    // Возврат только на внутренний адрес приложения.
-    const safe = typeof redirect === 'string' && redirect.startsWith('/') &&
-      !redirect.startsWith('//') && !redirect.includes('\\')
-    await router.replace(safe ? redirect : auth.homePath)
+    await router.replace(safeRedirect(route.query.redirect) || auth.homePath)
   } catch (error) {
     errorMessage.value = error.message
   } finally {
@@ -45,6 +42,6 @@ async function submit() {
       </div>
       <button :disabled="submitting">{{ submitting ? 'Входим…' : 'Войти' }}</button>
     </form>
-    <p>Нет аккаунта? <RouterLink to="/register">Зарегистрироваться</RouterLink></p>
+    <p>Нет аккаунта? <RouterLink :to="{ path: '/register', query: { redirect: safeRedirect(route.query.redirect) || undefined } }">Зарегистрироваться</RouterLink></p>
   </section>
 </template>

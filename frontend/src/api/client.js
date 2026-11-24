@@ -1,7 +1,7 @@
-const baseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '')
+export const baseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '')
 
-export async function request(path, { method = 'GET', body, token } = {}) {
-  const headers = {}
+export async function request(path, { method = 'GET', body, token, headers: extraHeaders = {} } = {}) {
+  const headers = { ...extraHeaders }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (token) headers.Authorization = `Bearer ${token}`
   let response
@@ -18,6 +18,7 @@ export async function request(path, { method = 'GET', body, token } = {}) {
     error.status = response.status
     error.detail = data?.detail
     error.problems = data?.problems
+    error.missing_question_ids = data?.missing_question_ids
     throw error
   }
   return data

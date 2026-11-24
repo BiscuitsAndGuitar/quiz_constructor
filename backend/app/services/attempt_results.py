@@ -79,7 +79,10 @@ def build_result(db, attempt, include_answers=False):
                     item.update(your_text=answer.get("text"), correct_text_answers=question.get("correct_text_answers", []))
                 else:
                     item.update(your_option_ids=answer.get("option_ids", []),
-                                correct_option_ids=[o["id"] for o in question["options"] if o["is_correct"]])
+                                correct_option_ids=[o["id"] for o in question["options"] if o["is_correct"]],
+                                your_options=[{"id": o["id"], "text": o["text"]} for o in question["options"]
+                                              if o["id"] in answer.get("option_ids", [])],
+                                correct_options=[{"id": o["id"], "text": o["text"]} for o in question["options"] if o["is_correct"]])
                 result["review"].append(item)
     return result
 

@@ -167,6 +167,33 @@ def test_invalid_answers(client, users, kind):
     assert finish(client, started, answers, users[2]).status_code == 422
 
 
+@pytest.mark.parametrize('length,padding,status', [(1000, '', 200), (1001, '', 422),
+                                                (1000, ' \n\t', 200), (1001, ' \n\t', 422)])
+def test_text_answer_length_after_trim(client, db_session, users, length, padding, status):
+    form = published(client, users, True)
+    started = start(client, form, users[2])
+    text_question = next(q for q in questions(started) if q['type'] == 'text')
+    single = next(q for q in questions(started) if q['type'] == 'single')
+    response = finish(client, started, [
+        {'question_id': single['id'], 'option_ids': [single['options'][0]['id']]},
+        {'question_id': text_question['id'], 'text': padding + 'я' * length + padding},
+    ], users[2])
+    assert response.status_code == status, response.text
+    attempt_id = started['attempt']['id']
+    attempt = db_session.get(Attempt, attempt_id)
+    rows = list(db_session.scalars(select(AttemptAnswer).where(AttemptAnswer.attempt_id == attempt_id)))
+    if status == 422:
+        assert str(text_question['id']) in response.json()['detail']
+        assert 'длиннее 1000 символов' in response.json()['detail']
+        assert attempt.finished_at is None and attempt.score is None
+        assert rows == []
+        assert not list(db_session.scalars(select(AttemptAnswerChoice).join(AttemptAnswer)
+            .where(AttemptAnswer.attempt_id == attempt_id)))
+    else:
+        assert attempt.finished_at is not None
+        assert next(row for row in rows if row.question_id == text_question['id']).text_answer == padding + 'я' * length + padding
+
+
 def test_test_scores_result_and_history(client, db_session, users):
     form = published(client, users, True)
     started = start(client, form, users[2])

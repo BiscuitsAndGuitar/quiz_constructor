@@ -1,11 +1,13 @@
 <script setup>
 import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { passwordError } from '../utils/password.js'
+import { safeRedirect } from '../utils/attempt.js'
 
 const auth = useAuthStore()
 const router = useRouter()
+const route = useRoute()
 const form = reactive({ name: '', email: '', password: '', repeatPassword: '', is_author: null })
 const errors = ref({})
 const submitting = ref(false)
@@ -27,7 +29,7 @@ async function submit() {
   submitting.value = true
   try {
     await auth.register({ name, email, password: form.password, is_author: form.is_author })
-    await router.replace(auth.homePath)
+    await router.replace(safeRedirect(route.query.redirect) || auth.homePath)
   } catch (error) {
     if (error.status === 409 || (error.status === 422 && error.message.includes('email'))) errors.value.email = error.message
     else if (error.status === 422 && error.message.startsWith('Пароль')) errors.value.password = error.message
@@ -82,6 +84,6 @@ async function submit() {
       <p v-if="generalError" class="error" role="alert">{{ generalError }}</p>
       <button :disabled="submitting">{{ submitting ? 'Регистрируем…' : 'Зарегистрироваться' }}</button>
     </form>
-    <p>Уже есть аккаунт? <RouterLink to="/login">Войти</RouterLink></p>
+    <p>Уже есть аккаунт? <RouterLink :to="{ path: '/login', query: { redirect: safeRedirect(route.query.redirect) || undefined } }">Войти</RouterLink></p>
   </section>
 </template>

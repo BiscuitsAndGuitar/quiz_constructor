@@ -81,8 +81,8 @@ def validate_visible_answers(questions, answers):
         if question["type"] == "text":
             if options:
                 raise AttemptError(422, prefix + "у текстового вопроса не может быть выбранных вариантов")
-            if text is not None and len(text) > 1000:
-                raise AttemptError(422, prefix + "ответ должен быть не длиннее 1000 символов")
+            if text is not None and len(text.strip()) > 1000:
+                raise AttemptError(422, prefix + "текстовый ответ длиннее 1000 символов")
         else:
             if text is not None:
                 raise AttemptError(422, prefix + "вопрос с выбором не принимает текстовый ответ")

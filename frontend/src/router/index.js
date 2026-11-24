@@ -7,11 +7,17 @@ import FormEditorPage from '../pages/FormEditorPage.vue'
 import MyAttemptsPage from '../pages/MyAttemptsPage.vue'
 import NotFoundPage from '../pages/NotFoundPage.vue'
 import { useAuthStore } from '../stores/auth.js'
+import PublicFormPage from '../pages/PublicFormPage.vue'
+import AttemptPage from '../pages/AttemptPage.vue'
+import AttemptResultPage from '../pages/AttemptResultPage.vue'
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/', component: HomePage },
+    { path: '/f/:code', component: PublicFormPage },
+    { path: '/attempt/:id', component: AttemptPage },
+    { path: '/attempt/:id/result', component: AttemptResultPage },
     { path: '/login', component: LoginPage, meta: { guestOnly: true } },
     { path: '/register', component: RegisterPage, meta: { guestOnly: true } },
     { path: '/my/forms', component: MyFormsPage, meta: { requiresAuth: true, isAuthor: true } },
