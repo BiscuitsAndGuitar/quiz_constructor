@@ -225,6 +225,7 @@ watch(() => route.params.id, loadForm, { immediate: true })
             <button v-if="!readOnly" :disabled="busy">{{ saving ? 'Сохраняем…' : 'Сохранить' }}</button>
             <button v-if="!readOnly" type="button" :disabled="busy" @click="publish">{{ publishing ? 'Публикуем…' : 'Опубликовать' }}</button>
             <button type="button" :disabled="busy" @click="previewOpen = true">Предпросмотр</button>
+            <RouterLink v-if="form.is_published" :to="`/forms/${form.id}/stats`">Статистика</RouterLink>
             <span v-if="dirty" role="status">Есть несохранённые изменения</span>
             <span v-else-if="saved && !readOnly" role="status">Сохранено</span>
             <RouterLink to="/my/forms">К списку</RouterLink>

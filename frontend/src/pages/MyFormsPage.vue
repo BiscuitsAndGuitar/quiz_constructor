@@ -173,6 +173,7 @@ onMounted(loadForms)
               <RouterLink :to="`/forms/${form.id}/edit`">{{ form.is_published ? 'Открыть' : 'Редактировать' }}</RouterLink>
               <button :disabled="copying" @click="createCopy(form)">Копия</button>
               <button v-if="form.is_published" @click="copyLink(form)">Скопировать ссылку</button>
+              <RouterLink v-if="form.is_published" :to="`/forms/${form.id}/stats`">Статистика</RouterLink>
               <button @click="openDelete(form)">Удалить</button>
             </div></td>
           </tr>
