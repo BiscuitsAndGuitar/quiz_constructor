@@ -10,6 +10,7 @@ from app.routers.auth import router as auth_router
 from app.routers.forms import router as forms_router
 from app.routers.public import router as public_router
 from app.routers.attempts import router as attempts_router
+from app.routers.statistics import router as statistics_router
 from app.services.attempt_errors import AttemptError
 
 app = FastAPI(title="Конструктор опросов и тестов")
@@ -17,6 +18,7 @@ app.include_router(auth_router)
 app.include_router(forms_router)
 app.include_router(public_router)
 app.include_router(attempts_router)
+app.include_router(statistics_router)
 
 
 @app.exception_handler(AttemptError)

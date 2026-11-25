@@ -60,6 +60,14 @@ def optional_user(request: Request, credentials: HTTPAuthorizationCredentials | 
     return get_current_user(credentials, db)
 
 
+def get_author_attempt(id: int, user: User = Depends(require_author), db: Session = Depends(get_db)) -> Attempt:
+    attempt = db.get(Attempt, id) if 1 <= id <= 2147483647 else None
+    if attempt is None:
+        raise HTTPException(status_code=404, detail="Попытка не найдена")
+    get_owned_form(attempt.form_id, user, db)
+    return attempt
+
+
 def attempt_participant(user: User | None = Depends(optional_user)):
     if user is not None and user.is_author:
         raise HTTPException(status_code=403, detail="Составители не могут проходить формы")
