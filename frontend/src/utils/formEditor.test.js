@@ -17,6 +17,7 @@ test('Сохранение передаёт все настройки и дел�
   for (const key of Object.keys(payload).filter(key => key !== 'blocks')) assert.deepEqual(payload[key], form[key])
   const expectedBlocks = structuredClone(form.blocks)
   delete expectedBlocks[0].questions[0].is_answer_required
+  expectedBlocks[0].questions[0].image_id = null
   assert.deepEqual(payload.blocks, expectedBlocks)
   form.blocks[0].questions[0].text = 'Позднее изменение'
   assert.equal(payload.blocks[0].questions[0].text, '')

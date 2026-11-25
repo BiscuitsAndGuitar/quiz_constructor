@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -12,6 +10,8 @@ from app.routers.public import router as public_router
 from app.routers.attempts import router as attempts_router
 from app.routers.statistics import router as statistics_router
 from app.services.attempt_errors import AttemptError
+from app.config import settings
+from app.routers.images import router as images_router
 
 app = FastAPI(title="Конструктор опросов и тестов")
 app.include_router(auth_router)
@@ -19,6 +19,7 @@ app.include_router(forms_router)
 app.include_router(public_router)
 app.include_router(attempts_router)
 app.include_router(statistics_router)
+app.include_router(images_router)
 
 
 @app.exception_handler(AttemptError)
@@ -49,6 +50,7 @@ async def validation_error_handler(request, error: RequestValidationError):
             "key": "Укажите непустой ключ элемента",
             "text": "Укажите текст; вариант ответа должен быть не длиннее 500 символов",
             "type": "Укажите тип вопроса",
+            "image_id": "Номер картинки должен быть целым положительным числом или null",
             "max_attempts": "Максимум попыток должен быть целым числом от 1 до 1000 или null",
             "time_limit_minutes": "Ограничение времени должно быть целым числом от 1 до 1440 или null",
             "points": "Укажите баллы — целое число от 1 до 1000",
@@ -84,9 +86,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+settings.UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 app.mount(
     "/uploads",
-    StaticFiles(directory=Path(__file__).resolve().parent.parent / "uploads"),
+    StaticFiles(directory=settings.UPLOADS_DIR),
     name="uploads",
 )
 

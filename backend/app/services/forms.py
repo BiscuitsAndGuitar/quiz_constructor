@@ -13,6 +13,7 @@ from app.models import ConditionOperator
 from app.services.conditions import validate_conditions
 from app.services.condition_storage import add_conditions_to_response, save_conditions
 from app.services.form_validation import publication_problems
+from app.models import Image
 
 
 class PublishedFormError(Exception):
@@ -115,13 +116,18 @@ def build_form_response(db: Session, form: Form) -> dict:
         for answer in answers:
             answers_by_question.setdefault(answer.question_id, []).append(answer.answer_text)
     questions_by_block = {}
+    images = {image.id: image for image in db.scalars(select(Image).where(Image.id.in_(
+        {question.image_id for question, _ in questions if question.image_id is not None}
+    )))}
     for question, question_type in questions:
         item = {
             "key": f"q{question.id}", "text": question.text, "type": question_type,
             "is_answer_required": question.is_answer_required,
             "options": choices_by_question.get(question.id, []),
+            "image": ({"id": question.image_id, "url": f"/uploads/{images[question.image_id].file_name}"}
+                      if question.image_id in images else None),
         }
-        if form.is_test:
+        if form.is_test and question_type != "info":
             item["points"] = question.points
             item["allow_partial_scoring"] = question.allow_partial_scoring if question_type == "multiple" else False
             if question_type == "text":
@@ -151,6 +157,10 @@ def save_form(db: Session, form: Form, data: FormSave) -> dict:
         if form.is_published:
             raise PublishedFormError("Опубликованную форму нельзя редактировать")
         validate_form(data, form.is_test)
+        image_ids = {question.image_id for block in data.blocks for question in block.questions if question.image_id is not None}
+        existing_images = set(db.scalars(select(Image.id).where(Image.id.in_(image_ids))))
+        if image_ids != existing_images:
+            raise InvalidFormError("Картинка не найдена")
         operator_ids = dict(db.execute(select(ConditionOperator.operator, ConditionOperator.id)).all())
         validate_conditions([block.model_dump(exclude_unset=True) for block in data.blocks], form.is_test, set(operator_ids))
         type_ids = dict(db.execute(select(QuestionType.type, QuestionType.id)).all())
@@ -169,6 +179,7 @@ def save_form(db: Session, form: Form, data: FormSave) -> dict:
                     block_id=block.id, type_id=type_ids[question_data.type], text=question_data.text,
                     is_answer_required=question_data.is_answer_required if not form.is_test else False,
                     position=question_position,
+                    image_id=question_data.image_id,
                     points=question_data.points if form.is_test else None,
                     allow_partial_scoring=bool(question_data.allow_partial_scoring) if form.is_test else False,
                 )

@@ -1,5 +1,6 @@
 <script setup>
 import { baseUrl } from '../api/client.js'
+import { imageUrl } from '../utils/images.js'
 import { limitTextAnswer } from '../utils/attempt.js'
 const props = defineProps({ question: Object, answer: Object, number: Number, required: Boolean, invalid: Boolean, disabled: Boolean })
 const emit = defineEmits(['answer'])
@@ -19,7 +20,7 @@ function choose(id, checked) {
 <template>
   <fieldset :id="`question-${question.id}`" class="attempt-question" :class="{ 'answer-missing': invalid }" :disabled="disabled">
     <legend v-if="question.type !== 'info'">Вопрос {{ number }} <span v-if="required" aria-label="обязательный">*</span></legend>
-    <img v-if="question.image" :src="`${baseUrl}${question.image.url}`" alt="Изображение к вопросу" class="question-image">
+    <img v-if="question.image" :src="imageUrl(question.image.url, baseUrl)" alt="Иллюстрация к вопросу" class="question-image">
     <p class="plain-text">{{ question.text }}</p>
     <template v-if="question.type === 'single' || question.type === 'multiple'">
       <label v-for="option in question.options" :key="option.id" class="attempt-option">

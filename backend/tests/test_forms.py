@@ -170,7 +170,7 @@ def test_draft_accepts_incomplete_content_and_ignores_future_fields(client, db_s
     data["blocks"][0]["questions"][1]["points"] = 1
     # Условия и правила уже поддерживаются и больше не являются игнорируемыми полями.
     question.update({"text": "", "points": 10, "correct_text_answers": [],
-                     "image_id": 123, "allow_partial_scoring": True})
+                     "image_id": None, "allow_partial_scoring": True})
     question["options"] = [{"key": "empty", "text": "", "is_correct": True}]
     response = client.put(f"/forms/{form['id']}", json=data, headers=headers(users[0]))
     assert response.status_code == 200
@@ -178,7 +178,8 @@ def test_draft_accepts_incomplete_content_and_ignores_future_fields(client, db_s
     assert saved["is_test"] is True and saved["is_published"] is False
     assert saved["public_code"] == form["public_code"]
     q = saved["blocks"][0]["questions"][0]
-    assert set(q) == {"key", "text", "type", "is_answer_required", "options", "points", "allow_partial_scoring"}
+    assert set(q) == {"key", "text", "type", "is_answer_required", "options", "points", "allow_partial_scoring", "image"}
+    assert q["image"] is None
     assert q["is_answer_required"] is False
     assert set(q["options"][0]) == {"key", "text", "is_correct"}
     stored = db_session.get(Question, int(q["key"][1:]))
@@ -235,7 +236,7 @@ def test_invalid_question(client, users, kind):
     response = client.put(f"/forms/{form['id']}", json=data, headers=headers(users[0]))
     assert response.status_code == 422
     if kind == "info":
-        assert response.json() == {"detail": "Тип «Текст без вопроса» пока не поддерживается"}
+        assert 'у «Текста без вопроса» не должно быть' in response.json()["detail"]
 
 
 def test_published_read_only(client, db_session, users):

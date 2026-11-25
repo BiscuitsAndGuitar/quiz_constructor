@@ -2,12 +2,13 @@ export const baseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8
 
 export async function request(path, { method = 'GET', body, token, headers: extraHeaders = {} } = {}) {
   const headers = { ...extraHeaders }
-  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  const isFormData = body instanceof FormData
+  if (body !== undefined && !isFormData) headers['Content-Type'] = 'application/json'
   if (token) headers.Authorization = `Bearer ${token}`
   let response
   try {
     response = await fetch(`${baseUrl}${path}`, {
-      method, headers, body: body === undefined ? undefined : JSON.stringify(body),
+      method, headers, body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
     })
   } catch {
     throw new Error('Не удалось связаться с сервером. Попробуйте ещё раз.')

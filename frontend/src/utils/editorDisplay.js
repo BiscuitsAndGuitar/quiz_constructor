@@ -57,7 +57,7 @@ export function questionSummary(question) {
   return text.length > 90 ? `${text.slice(0, 90)}…` : text
 }
 
-export const questionTypeNames = { single: 'Один ответ', multiple: 'Несколько ответов', text: 'Текстовый ответ' }
+export const questionTypeNames = { single: 'Один ответ', multiple: 'Несколько ответов', text: 'Текстовый ответ', info: 'Текст без вопроса' }
 // Символы не пересекаются с временными ключами блоков и вопросов.
 export const settingsSection = Symbol('settings')
 export const gradingSection = Symbol('grading')

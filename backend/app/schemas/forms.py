@@ -44,10 +44,17 @@ class FinishRuleData(BaseModel):
     condition: ConditionData
 
 
+class QuestionImage(BaseModel):
+    id: int
+    url: str
+
+
 class QuestionData(BaseModel):
     key: str = Field(min_length=1)
     text: str
     type: str
+    image_id: StrictInt | None = Field(default=None, ge=1, le=2147483647)
+    image: QuestionImage | None = None
     is_answer_required: StrictBool = False
     options: list[ChoiceData] = Field(default_factory=list)
     points: StrictInt | None = None
@@ -59,9 +66,7 @@ class QuestionData(BaseModel):
     @field_validator("type")
     @classmethod
     def check_type(cls, value: str) -> str:
-        if value == "info":
-            raise PydanticCustomError("form", "Тип «Текст без вопроса» пока не поддерживается")
-        if value not in {"single", "multiple", "text"}:
+        if value not in {"single", "multiple", "text", "info"}:
             raise PydanticCustomError("form", "Неизвестный тип вопроса")
         return value
 

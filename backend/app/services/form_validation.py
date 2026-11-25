@@ -8,8 +8,8 @@ class InvalidFormError(Exception):
 def publication_problems(form: dict) -> list[str]:
     problems = []
     questions = [question for block in form["blocks"] for question in block["questions"]]
-    if not questions:
-        problems.append("В форме должен быть хотя бы один вопрос")
+    if not any(question["type"] != "info" for question in questions):
+        problems.append("Добавьте хотя бы один вопрос")
     for number, question in enumerate(questions, 1):
         kind = question["type"]
         if kind == "info":
@@ -86,6 +86,12 @@ def validate_form(data: FormSave, is_test: bool) -> None:
     for block in data.blocks:
         for question in block.questions:
             number += 1
+            if question.type == "info":
+                if (question.options or question.points is not None or question.allow_partial_scoring
+                        or question.correct_text_answers or question.is_answer_required or question.finish_rules):
+                    raise InvalidFormError(f"Вопрос {number}: у «Текста без вопроса» не должно быть вариантов, баллов, правильных ответов, обязательности или правил завершения")
+                question.correct_text_answers = []
+                continue
             if is_test:
                 validate_test_question(question, number)
             elif (question.points is not None or question.allow_partial_scoring

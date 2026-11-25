@@ -1,3 +1,5 @@
+import { questionNumbers } from './formEditor.js'
+
 export const operatorNames = {
   chosen: 'Выбран вариант', not_chosen: 'Не выбран вариант', equals: 'Ответ равен',
   contains: 'Ответ содержит', answered: 'Есть ответ', not_answered: 'Нет ответа',
@@ -11,9 +13,9 @@ export function operatorsFor(type) {
 }
 
 export function indexedQuestions(blocks) {
-  let number = 0
+  const numbers = questionNumbers(blocks)
   return blocks.flatMap((block, blockIndex) => block.questions.map((question, questionIndex) => ({
-    question, blockIndex, questionIndex, number: ++number,
+    question, blockIndex, questionIndex, number: numbers[blockIndex][questionIndex],
   })))
 }
 
@@ -25,17 +27,17 @@ export function availableQuestions(blocks, blockIndex, questionIndex = -1, inclu
 
 export function conditionOwners(blocks) {
   const result = []
-  let number = 0
+  const numbers = questionNumbers(blocks)
   blocks.forEach((block, blockIndex) => {
     result.push({ condition: block.condition, blockIndex, questionIndex: -1,
       label: `Условие блока ${blockIndex + 1}` })
     block.questions.forEach((question, questionIndex) => {
-      number++
+      const label = question.type === 'info' ? '«Текст без вопроса»' : `вопроса ${numbers[blockIndex][questionIndex]}`
       result.push({ condition: question.condition, blockIndex, questionIndex, questionKey: question.key,
-        label: `Условие вопроса ${number}` })
+        label: `Условие ${label}` })
       ;(question.finish_rules || []).forEach((rule, ruleIndex) => result.push({
         condition: rule.condition, blockIndex, questionIndex, questionKey: question.key, includeSelf: true,
-        label: `Правило ${ruleIndex + 1} вопроса ${number}`,
+        label: `Правило ${ruleIndex + 1} ${label}`,
       }))
     })
   })
@@ -54,7 +56,7 @@ export function referenceErrors(blocks) {
       const source = questions.find(entry => entry.question.key === item.question)
       // Незавершённая строка редактора не блокирует действия; сервер проверит её при сохранении.
       if (!item.question) continue
-      const label = source ? `вопрос ${source.number}` : `вопрос «${item.question}»`
+      const label = source ? (source.question.type === 'info' ? '«Текст без вопроса»' : `вопрос ${source.number}`) : `вопрос «${item.question}»`
       if (!allowed.some(entry => entry.question.key === item.question)) {
         errors.push(`${owner.label} ссылается на ${label}: он должен быть ${owner.includeSelf ? 'не позже вопроса правила' : 'раньше'} и не типа «Текст без вопроса»`)
       } else if (!operatorsFor(source.question.type).includes(item.operator)) {

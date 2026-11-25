@@ -1,9 +1,31 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { availableQuestions, deletionReferences, operatorsFor, referenceErrors, typeChangeErrors } from './conditions.js'
-import { formSavePayload, formSnapshot, moveBlock, moveQuestion } from './formEditor.js'
+import { formSavePayload, formSnapshot, moveBlock, moveQuestion, questionNumbers } from './formEditor.js'
 
 const condition = (question, operator = 'answered', value = {}) => ({ match_all: true, items: [{ question, operator, ...value }] })
+
+test('Info в начале, середине и конце не меняет номера в условиях, правилах и сообщениях', () => {
+  const data = [
+    { key: 'b1', questions: [{ key: 'i1', type: 'info' }, { key: 'q1', type: 'text', options: [] }, { key: 'i2', type: 'info', condition: condition('q1') }] },
+    { key: 'b2', condition: condition('q1'), questions: [
+      { key: 'q2', type: 'text', options: [], condition: condition('q1') },
+      { key: 'q3', type: 'text', options: [], finish_rules: [{ key: 'r', condition: condition('q2') }] },
+      { key: 'i3', type: 'info' },
+    ] },
+  ]
+  assert.deepEqual(questionNumbers(data), [[null, 1, null], [2, 3, null]])
+  assert.deepEqual(availableQuestions(data, 1).map(q => q.number), [1])
+  assert.deepEqual(availableQuestions(data, 1, 1).map(q => q.number), [1, 2])
+  assert.deepEqual(availableQuestions(data, 1, 1, true).map(q => q.number), [1, 2, 3])
+  assert.deepEqual(deletionReferences(data, ['q1']), ['Условие «Текст без вопроса»', 'Условие блока 2', 'Условие вопроса 2'])
+  assert.deepEqual(deletionReferences(data, ['q2']), ['Правило 1 вопроса 3'])
+  data[1].questions[0].condition = condition('q3')
+  assert.match(referenceErrors(data).join(), /Условие вопроса 2 ссылается на вопрос 3/)
+  data[1].questions[0].condition = condition('i1')
+  assert.match(referenceErrors(data).join(), /Условие вопроса 2 ссылается на «Текст без вопроса»/)
+  assert.doesNotMatch(referenceErrors(data).join(), /null/)
+})
 function blocks() {
   return [
     { key: 'b1', questions: [{ key: 'q1', type: 'single', options: [{ key: 'o1', text: 'Да' }] },
@@ -90,7 +112,8 @@ test('Ссылки на удалённые вопросы и варианты о
 
 test('Тело опроса сохраняет условия и порядок правил; тест не отправляет их; снимок замечает изменения', () => {
   const form = { is_test: false, blocks: blocks(), title: 'Опрос', take_by_blocks: true }
-  assert.deepEqual(formSavePayload(form).blocks, form.blocks.map(block => ({ ...block, title: null })))
+  assert.deepEqual(formSavePayload(form).blocks, form.blocks.map(block => ({ ...block, title: null,
+    questions: block.questions.map(question => ({ ...question, image_id: null })) })))
   const before = formSnapshot(form)
   form.blocks[1].questions[0].finish_rules.reverse()
   assert.notEqual(formSnapshot(form), before)

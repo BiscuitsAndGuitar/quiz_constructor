@@ -1,6 +1,6 @@
 from sqlalchemy import select
 
-from app.models import GradingScale, Image, Question
+from app.models import GradingScale
 from app.services.forms import build_form_response
 
 
@@ -33,12 +33,6 @@ def load_attempt_form(db, form):
                 rule["id"] = int(rule.pop("key")[1:])
                 rule["position"] = position
                 rule["condition"] = numeric_condition(rule["condition"])
-    questions = {q["id"]: q for b in data["blocks"] for q in b["questions"]}
-    for question_id, image_id, file_name in db.execute(
-        select(Question.id, Image.id, Image.file_name).join(Image, Question.image_id == Image.id)
-        .where(Question.id.in_(questions))
-    ):
-        questions[question_id]["image"] = {"id": image_id, "url": f"/uploads/{file_name}"}
     data["grading_scale"] = [{"id": row.id, "min_percent": row.min_percent, "grade": row.grade, "message": row.message}
                              for row in db.scalars(select(GradingScale).where(GradingScale.form_id == form.id))]
     return data

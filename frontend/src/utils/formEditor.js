@@ -10,10 +10,15 @@ export function newOption(isTest = false) {
   return option
 }
 
-export function changeQuestionType(question, type) {
+export function changeQuestionType(question, type, isTest = 'points' in question) {
   if (question.type === type) return
   question.type = type
-  if (type === 'text') question.options = []
+  if (type === 'text' || type === 'info') question.options = []
+  if (type === 'info') {
+    for (const key of ['points', 'allow_partial_scoring', 'correct_text_answers', 'is_answer_required', 'finish_rules']) delete question[key]
+    return
+  }
+  if (isTest) question.points ??= 1
   for (const option of question.options) {
     if ('is_correct' in option) option.is_correct = false
   }
@@ -34,7 +39,7 @@ export function sortGradingScale(scale) {
 
 export function totalPoints(form) {
   return form.blocks.reduce((total, block) => total + block.questions.reduce((sum, question) =>
-    sum + (Number.isInteger(question.points) ? question.points : 0), 0), 0)
+    sum + (question.type !== 'info' && Number.isInteger(question.points) ? question.points : 0), 0), 0)
 }
 
 export function prepareFormForEditor(form) {
@@ -42,7 +47,7 @@ export function prepareFormForEditor(form) {
   if (result.is_test && !result.is_published) {
     if (!result.grading_scale?.length) result.grading_scale = defaultGradingScale()
     for (const block of result.blocks) {
-      for (const question of block.questions) question.points ??= 1
+      for (const question of block.questions) if (question.type !== 'info') question.points ??= 1
     }
   }
   return result
@@ -75,6 +80,13 @@ export function formSavePayload(form) {
         for (const key of ['points', 'allow_partial_scoring', 'correct_text_answers']) delete question[key]
         for (const option of question.options) delete option.is_correct
       }
+    }
+  }
+  for (const block of payload.blocks) for (const question of block.questions) {
+    question.image_id = question.image?.id ?? null
+    delete question.image
+    if (question.type === 'info') {
+      for (const key of ['options', 'points', 'allow_partial_scoring', 'correct_text_answers', 'is_answer_required', 'finish_rules']) delete question[key]
     }
   }
   return payload
@@ -123,7 +135,7 @@ export function moveQuestion(blocks, blockIndex, questionIndex, direction) {
 
 export function questionNumbers(blocks) {
   let number = 0
-  return blocks.map(block => block.questions.map(() => ++number))
+  return blocks.map(block => block.questions.map(question => question.type === 'info' ? null : ++number))
 }
 
 export function formSnapshot(form) {
