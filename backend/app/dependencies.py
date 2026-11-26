@@ -4,7 +4,7 @@ from jwt import InvalidTokenError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Form, User, Attempt
+from app.models import Form, User, Attempt, LibraryBlock
 from sqlalchemy import select
 import secrets
 from app.services.security import decode_access_token
@@ -58,6 +58,25 @@ def optional_user(request: Request, credentials: HTTPAuthorizationCredentials | 
     if "authorization" not in request.headers:
         return None
     return get_current_user(credentials, db)
+
+
+def get_library_block(id: int, user: User = Depends(require_author), db: Session = Depends(get_db)) -> LibraryBlock:
+    item = db.get(LibraryBlock, id) if 1 <= id <= 2147483647 else None
+    if item is None:
+        raise HTTPException(status_code=404, detail="Блок библиотеки не найден")
+    return item
+
+
+def get_visible_library_block(item: LibraryBlock = Depends(get_library_block), user: User = Depends(require_author)) -> LibraryBlock:
+    if item.owner_id != user.id and not item.is_public:
+        raise HTTPException(status_code=403, detail="Нет доступа к приватному блоку")
+    return item
+
+
+def get_owned_library_block(item: LibraryBlock = Depends(get_library_block), user: User = Depends(require_author)) -> LibraryBlock:
+    if item.owner_id != user.id:
+        raise HTTPException(status_code=403, detail="Нет доступа к чужому блоку")
+    return item
 
 
 def get_author_attempt(id: int, user: User = Depends(require_author), db: Session = Depends(get_db)) -> Attempt:

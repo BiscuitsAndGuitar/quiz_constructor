@@ -12,6 +12,7 @@ from app.routers.statistics import router as statistics_router
 from app.services.attempt_errors import AttemptError
 from app.config import settings
 from app.routers.images import router as images_router
+from app.routers.library import router as library_router
 
 app = FastAPI(title="Конструктор опросов и тестов")
 app.include_router(auth_router)
@@ -20,6 +21,7 @@ app.include_router(public_router)
 app.include_router(attempts_router)
 app.include_router(statistics_router)
 app.include_router(images_router)
+app.include_router(library_router)
 
 
 @app.exception_handler(AttemptError)
@@ -69,6 +71,13 @@ async def validation_error_handler(request, error: RequestValidationError):
             "option": "Укажите ключ варианта ответа для условия",
             "text_answer": "Значение текстового условия должно быть строкой",
             "finish_rules": "Правила завершения должны быть списком",
+            "tags": "Теги должны быть списком строк",
+            "block": "Укажите блок с вопросами",
+            "is_public": "Публичность должна быть true или false",
+            "description": "Описание должно быть текстом или null",
+            "scope": "Выберите scope: mine, public или all",
+            "limit": "limit должен быть целым числом от 1 до 100",
+            "offset": "offset должен быть целым неотрицательным числом",
         }.get(field, "Неверные данные запроса")
     if "answers" in location:
         detail = "Ответы должны содержать целый question_id, список целых option_ids или строку text"
