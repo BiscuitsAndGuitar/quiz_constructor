@@ -10,7 +10,7 @@ const props = defineProps({
   numbers: { type: Array, required: true }, isTest: Boolean, disabled: Boolean, readOnly: Boolean,
   collapsed: { type: Set, required: true },
 })
-const emit = defineEmits(['remove', 'move', 'move-question', 'error', 'toggle'])
+const emit = defineEmits(['remove', 'move', 'move-question', 'error', 'toggle', 'save-library'])
 
 function removeQuestion(index) {
   const question = props.blocks[props.index].questions[index]
@@ -35,6 +35,7 @@ function addQuestion() {
         :aria-expanded="!collapsed.has(blocks[index].key)" @click="$emit('toggle', blocks[index].key)">{{ collapsed.has(blocks[index].key) ? '▸' : '▾' }}</button>
       <span class="card-summary">{{ blocks[index].title?.trim() || `Блок ${index + 1}` }} · Вопросов: {{ blocks[index].questions.length }}</span>
       <span v-if="blocks[index].condition" class="hint">есть условие</span>
+      <button v-if="!readOnly" type="button" :disabled="disabled || !blocks[index].questions.length" :title="blocks[index].questions.length ? 'Сохранить в библиотеку' : 'Добавьте в блок вопрос'" @click="emit('save-library')">Сохранить в библиотеку</button>
       <button v-if="!readOnly" type="button" title="Вверх" :aria-label="`Блок ${index + 1}: вверх`" :disabled="disabled || index === 0" @click="$emit('move', -1)">↑</button>
       <button v-if="!readOnly" type="button" title="Вниз" :aria-label="`Блок ${index + 1}: вниз`" :disabled="disabled || index === blocks.length - 1" @click="$emit('move', 1)">↓</button>
       <button v-if="!readOnly" type="button" :disabled="disabled || blocks.length === 1" @click="$emit('remove')">Удалить блок</button>

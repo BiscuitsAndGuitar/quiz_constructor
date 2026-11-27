@@ -5,6 +5,7 @@ import RegisterPage from '../pages/RegisterPage.vue'
 import MyFormsPage from '../pages/MyFormsPage.vue'
 import FormEditorPage from '../pages/FormEditorPage.vue'
 import FormStatisticsPage from '../pages/FormStatisticsPage.vue'
+import LibraryPage from '../pages/LibraryPage.vue'
 import MyAttemptsPage from '../pages/MyAttemptsPage.vue'
 import NotFoundPage from '../pages/NotFoundPage.vue'
 import { useAuthStore } from '../stores/auth.js'
@@ -22,6 +23,7 @@ const router = createRouter({
     { path: '/login', component: LoginPage, meta: { guestOnly: true } },
     { path: '/register', component: RegisterPage, meta: { guestOnly: true } },
     { path: '/my/forms', component: MyFormsPage, meta: { requiresAuth: true, isAuthor: true } },
+    { path: '/library', component: LibraryPage, meta: { requiresAuth: true, isAuthor: true } },
     { path: '/forms/:id/edit', component: FormEditorPage, meta: { requiresAuth: true, isAuthor: true } },
     { path: '/forms/:id/stats', component: FormStatisticsPage, meta: { requiresAuth: true, isAuthor: true } },
     { path: '/my/attempts', component: MyAttemptsPage, meta: { requiresAuth: true, isAuthor: false } },

@@ -29,7 +29,7 @@ async function logout() {
       <template v-else>
         <template v-if="auth.user.is_author">
           <RouterLink to="/my/forms">Мои опросы и тесты</RouterLink>
-          <button disabled title="Раздел появится позже">Библиотека блоков</button>
+          <RouterLink to="/library">Библиотека блоков</RouterLink>
         </template>
         <template v-else>
           <RouterLink to="/my/attempts">Мои прохождения</RouterLink>

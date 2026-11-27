@@ -14,6 +14,9 @@ import NotFoundPage from './NotFoundPage.vue'
 import { deletionReferences, referenceErrors } from '../utils/conditions.js'
 import MessageDialog from '../components/MessageDialog.vue'
 import FormPreview from '../components/FormPreview.vue'
+import LibraryMetadataDialog from '../components/LibraryMetadataDialog.vue'
+import LibraryPickerDialog from '../components/LibraryPickerDialog.vue'
+import { insertLibraryBlock } from '../utils/library.js'
 import { collapseAllSections, settingsSection, gradingSection, expandForErrors, remapCollapsed, toggleCollapsed } from '../utils/editorDisplay.js'
 
 const route = useRoute()
@@ -33,6 +36,8 @@ const publishing = ref(false)
 const copying = ref(false)
 const copiedLink = ref(false)
 const previewOpen = ref(false)
+const libraryBlock = ref(null)
+const libraryPickerOpen = ref(false)
 let copyNoticeTimer
 const readOnly = computed(() => isReadOnly(form.value))
 const busy = computed(() => saving.value || publishing.value || copying.value)
@@ -69,6 +74,24 @@ function showMessage(message) {
   messageDialog.value.show(message)
 }
 
+function libraryError(error) {
+  if (error.status === 401) router.replace({ path: '/login', query: { redirect: route.fullPath } })
+}
+function librarySaved(result) {
+  libraryBlock.value = null
+  messageDialog.value.show(['Блок сохранён в библиотеку', ...(result.warnings || [])], 'Библиотека блоков')
+}
+function addFromLibrary(block) {
+  if (busy.value || readOnly.value) return
+  try {
+    const added = insertLibraryBlock(block, form.value.blocks)
+    form.value.blocks = addBlock(form.value.blocks, added)
+    saved.value = false
+    libraryPickerOpen.value = false
+    messageDialog.value.show('Блок добавлен в форму. Не забудьте сохранить форму', 'Библиотека блоков')
+  } catch (error) { showMessage(error.message) }
+}
+
 function handleError(error, savingError = false) {
   if (savingError) {
     const detail = error.detail ?? error.message
@@ -87,6 +110,8 @@ async function loadForm(id) {
   errorStatus.value = null
   saved.value = false
   form.value = null
+  libraryBlock.value = null
+  libraryPickerOpen.value = false
   collapsed.value = new Set()
   try {
     const result = await getForm(id)
@@ -240,9 +265,11 @@ watch(() => route.params.id, loadForm, { immediate: true })
               :numbers="numbers[index]" :is-test="form.is_test" :disabled="busy" :read-only="readOnly"
               :collapsed="collapsed" @toggle="collapsed = toggleCollapsed(collapsed, $event)"
               @error="showMessage"
+              @save-library="libraryBlock = block"
               @remove="deleteBlock(index)" @move="applyMove(moveBlock(form.blocks, index, $event))"
               @move-question="(questionIndex, direction) => applyMove(moveQuestion(form.blocks, index, questionIndex, direction))" />
             <button v-if="!readOnly" type="button" @click="form.blocks = addBlock(form.blocks, newBlock())">Добавить блок</button>
+            <button v-if="!readOnly" type="button" @click="libraryPickerOpen = true">Добавить из библиотеки</button>
             <GradingScaleEditor v-if="form.is_test" :read-only="readOnly" :scale="form.grading_scale" :collapsed="collapsed.has(gradingSection)" @toggle="collapsed = toggleCollapsed(collapsed, gradingSection)" />
             <p v-if="form.is_test" class="total-points">Всего баллов: {{ totalPoints(form) }}</p>
           </fieldset>
@@ -255,4 +282,6 @@ watch(() => route.params.id, loadForm, { immediate: true })
   <MessageDialog ref="messageDialog" />
   <ConfirmDialog ref="publishDialog" />
   <FormPreview v-if="previewOpen && form" :form="form" @close="previewOpen = false" />
+  <LibraryMetadataDialog v-if="libraryBlock && form && !readOnly" :block="libraryBlock" :is-test="form.is_test" @close="libraryBlock = null" @saved="librarySaved" @error="libraryError" />
+  <LibraryPickerDialog v-if="libraryPickerOpen && form && !readOnly" :is-test="form.is_test" @close="libraryPickerOpen = false" @selected="addFromLibrary" @error="libraryError" />
 </template>
